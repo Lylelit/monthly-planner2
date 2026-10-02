@@ -11,7 +11,6 @@ export function getMonthWeeks(year: number, month: number): Week[] {
   let current = new Date(firstDay);
   const dayOfWeek = current.getDay(); // 0=Sun, 1=Mon, ...
   const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-  current = new Date(current);
   current.setDate(current.getDate() + diff);
 
   let weekIndex = 0;
@@ -33,6 +32,10 @@ export function getMonthWeeks(year: number, month: number): Week[] {
       days,
     });
     weekIndex++;
+    
+    // Skip weekend (Saturday and Sunday)
+    current.setDate(current.getDate() + 2);
+    
     if (current > lastDay && weekIndex > 0) break;
   }
 
