@@ -4,17 +4,14 @@ import { getMonthWeeks, getMonthName, generateId, HOURS_PER_DAY } from './utils/
 import TaskForm from './components/TaskForm';
 import TaskCard from './components/TaskCard';
 import DayColumn from './components/DayColumn';
+import { loadTasks, loadAssignments, saveTasks, saveAssignments, getStorageMode } from './services/storageService';
 
 function App() {
   const now = new Date();
   const [currentYear, setCurrentYear] = useState(now.getFullYear());
   const [currentMonth, setCurrentMonth] = useState(now.getMonth());
   const [tasks, setTasks] = useState<Task[]>(() => {
-    try {
-      const saved = localStorage.getItem('planner-tasks');
-      if (saved) return JSON.parse(saved);
-    } catch { /* ignore */ }
-    // Demo tasks
+    // Демо-данные для первого запуска
     return [
       { id: 'demo-1', title: 'Разработка API', totalHours: 12, color: '#6366f1' },
       { id: 'demo-2', title: 'Дизайн интерфейса', totalHours: 8, color: '#ec4899' },
@@ -22,11 +19,7 @@ function App() {
     ];
   });
   const [assignments, setAssignments] = useState<TaskAssignment[]>(() => {
-    try {
-      const saved = localStorage.getItem('planner-assignments');
-      if (saved) return JSON.parse(saved);
-    } catch { /* ignore */ }
-    // Demo assignments
+    // Демо-данные для первого запуска
     const weeks = getMonthWeeks(now.getFullYear(), now.getMonth());
     if (weeks.length > 0 && weeks[0].days.length > 0) {
       return [
@@ -42,14 +35,46 @@ function App() {
   const [showHint, setShowHint] = useState(() => {
     return !localStorage.getItem('planner-hint-dismissed');
   });
+  const [isLoading, setIsLoading] = useState(true);
 
+  // Загрузка данных при старте
   useEffect(() => {
-    localStorage.setItem('planner-tasks', JSON.stringify(tasks));
-  }, [tasks]);
+    async function loadData() {
+      try {
+        const [savedTasks, savedAssignments] = await Promise.all([
+          loadTasks(),
+          loadAssignments(),
+        ]);
+        
+        if (savedTasks.length > 0) {
+          setTasks(savedTasks);
+        }
+        if (savedAssignments.length > 0) {
+          setAssignments(savedAssignments);
+        }
+      } catch (error) {
+        console.error('Error loading data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    
+    loadData();
+  }, []);
 
+  // Сохранение задач
   useEffect(() => {
-    localStorage.setItem('planner-assignments', JSON.stringify(assignments));
-  }, [assignments]);
+    if (!isLoading) {
+      saveTasks(tasks);
+    }
+  }, [tasks, isLoading]);
+
+  // Сохранение назначений
+  useEffect(() => {
+    if (!isLoading) {
+      saveAssignments(assignments);
+    }
+  }, [assignments, isLoading]);
 
   const weeks = useMemo(() => getMonthWeeks(currentYear, currentMonth), [currentYear, currentMonth]);
 
@@ -187,6 +212,17 @@ function App() {
       .reduce((sum, a) => sum + a.hours, 0);
   };
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-white to-indigo-50/30">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-500 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-slate-600 font-medium">Загрузка данных...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50/30">
       {/* Header */}
@@ -235,6 +271,15 @@ function App() {
 
           {/* Stats */}
           <div className="flex items-center gap-4">
+            {/* Индикатор режима хранения */}
+            <div className={`px-2 py-1 rounded-md text-xs font-medium ${
+              getStorageMode() === 'supabase' 
+                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
+                : 'bg-slate-50 text-slate-500 border border-slate-200'
+            }`}>
+              {getStorageMode() === 'supabase' ? '☁️ Облако' : '💾 Локально'}
+            </div>
+            
             <div className="text-right">
               <div className="text-xs text-slate-500">Задачи</div>
               <div className="text-sm font-bold text-slate-700">{tasks.length} шт / {totalTaskHours}ч</div>
