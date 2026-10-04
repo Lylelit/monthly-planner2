@@ -98,8 +98,8 @@ export default function DayColumn({ day, tasks, assignments, onDropTask, onRemov
       style={{
         position: 'relative', display: 'flex', flexDirection: 'column',
         borderRadius: 12, minHeight: 180, transition: 'all 0.2s',
-        background: !day.isWorkingDay ? theme.bgTertiary : isToday ? `${theme.accent1}08` : theme.bgCard,
-        border: `1px solid ${!day.isWorkingDay ? theme.borderPrimary : isToday ? `${theme.accent1}40` : isDragOver ? theme.accent1 : theme.borderPrimary}`,
+        background: !day.isWorkingDay ? theme.bgTertiary : theme.bgCard,
+        border: `${isToday ? '3px' : '1px'} solid ${!day.isWorkingDay ? theme.borderPrimary : isToday ? theme.accent1 : isDragOver ? theme.accent1 : theme.borderPrimary}`,
         opacity: !day.isWorkingDay ? 0.4 : 1,
         boxShadow: isDragOver ? `0 0 0 2px ${theme.accent1}30` : theme.shadow,
         overflow: 'hidden'
@@ -108,7 +108,7 @@ export default function DayColumn({ day, tasks, assignments, onDropTask, onRemov
       {/* Header */}
       <div style={{
         padding: '10px 12px', borderBottom: `1px solid ${theme.borderPrimary}`,
-        background: isToday ? `${theme.accent1}08` : 'transparent',
+        background: 'transparent',
         borderRadius: '12px 12px 0 0'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -236,19 +236,19 @@ export default function DayColumn({ day, tasks, assignments, onDropTask, onRemov
           <p style={{ fontSize: 12, color: theme.textSecondary, marginBottom: 4, fontWeight: 500 }}>Сколько часов назначить?</p>
           <p style={{ fontSize: 10, color: theme.textTertiary, marginBottom: 12 }}>Свободно: {freeHours}ч из 8ч</p>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center', maxWidth: 200 }}>
-            {Array.from({ length: Math.min(Math.floor(freeHours), 8) }, (_, i) => i + 1).map((h) => (
+            {[0.25, 0.5, 1, 2, 3, 4, 5, 6, 7, 8].filter(h => h <= freeHours).map((h) => (
               <button
                 key={h}
                 onClick={() => handleQuickDrop(h)}
                 style={{
                   width: 36, height: 36, borderRadius: 8, background: `${theme.accent1}15`,
-                  color: theme.accent1, fontWeight: 700, fontSize: 14, border: `1px solid ${theme.accent1}30`,
+                  color: theme.accent1, fontWeight: 700, fontSize: h < 1 ? 11 : 14, border: `1px solid ${theme.accent1}30`,
                   cursor: 'pointer', transition: 'all 0.2s'
                 }}
                 onMouseEnter={e => { e.currentTarget.style.background = theme.accent1; e.currentTarget.style.color = '#fff'; e.currentTarget.style.transform = 'scale(1.1)'; }}
                 onMouseLeave={e => { e.currentTarget.style.background = `${theme.accent1}15`; e.currentTarget.style.color = theme.accent1; e.currentTarget.style.transform = 'scale(1)'; }}
               >
-                {h}
+                {h < 1 ? `${h * 60}м` : h}
               </button>
             ))}
           </div>

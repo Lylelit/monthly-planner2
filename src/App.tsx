@@ -98,7 +98,7 @@ function App() {
     if (!task) return;
     const totalAssigned = assignments.filter((a) => a.taskId === taskId).reduce((sum, a) => sum + a.hours, 0);
     const remaining = task.totalHours - totalAssigned;
-    if (remaining <= 1) return;
+    if (remaining <= 0.5) return;
     const splitHours = Math.floor(remaining / 2);
     const newTask: Task = { ...task, id: generateId(), title: `${task.title} (часть 2)`, totalHours: remaining - splitHours };
     setTasks((prev) => [...prev.map((t) => t.id === taskId ? { ...t, totalHours: totalAssigned + splitHours } : t), newTask]);
@@ -106,7 +106,7 @@ function App() {
 
   const splitAssignment = useCallback((assignmentId: string) => {
     const assignment = assignments.find((a) => a.id === assignmentId);
-    if (!assignment || assignment.hours <= 1) return;
+    if (!assignment || assignment.hours <= 0.5) return;
     const half = Math.floor(assignment.hours / 2);
     const rest = assignment.hours - half;
     setAssignments((prev) => {

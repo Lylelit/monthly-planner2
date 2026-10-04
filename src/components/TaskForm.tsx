@@ -3,7 +3,23 @@ import { Task } from '../types';
 import { generateId } from '../utils/dateUtils';
 import { useTheme } from '../ThemeContext';
 
-const COLORS = ['#3996D3', '#EF7D00', '#87B4E1', '#89BC6B', '#F6A758'];
+const COLORS = [
+  '#3996D3', // голубой
+  '#EF7D00', // оранжевый
+  '#89BC6B', // зелёный
+  '#E74C3C', // красный
+  '#9B59B6', // фиолетовый
+  '#F1C40F', // жёлтый
+  '#1ABC9C', // бирюзовый
+  '#E91E63', // розовый
+  '#34495E', // тёмно-синий
+  '#F6A758', // персиковый
+  '#2ECC71', // изумрудный
+  '#D35400', // тёмно-оранжевый
+  '#8E44AD', // пурпурный
+  '#16A085', // тёмно-бирюзовый
+  '#C0392B', // бордовый
+];
 
 interface Props {
   onAddTask: (task: Task) => void;
@@ -72,9 +88,9 @@ export default function TaskForm({ onAddTask }: Props) {
           <label style={{ fontSize: 12, color: theme.textTertiary, marginBottom: 4, display: 'block' }}>Часы</label>
           <input
             type="number"
-            min="0.5"
+            min="0.25"
             max="80"
-            step="0.5"
+            step="0.25"
             placeholder="0"
             value={hours}
             onChange={(e) => setHours(e.target.value)}
