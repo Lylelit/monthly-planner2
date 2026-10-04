@@ -16,8 +16,35 @@ export default function CompletedTasksList({ tasks, assignments, days, onReturnT
   const [isExpanded, setIsExpanded] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [returnHours, setReturnHours] = useState('');
+  const [selectedMonth, setSelectedMonth] = useState<string>('all');
 
   const completedTasks = tasks.filter(t => t.status === 'completed');
+
+  // Получаем уникальные месяцы из выполненных задач
+  const availableMonths = Array.from(new Set(
+    completedTasks
+      .filter(t => t.completedAt)
+      .map(t => {
+        const date = new Date(t.completedAt!);
+        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      })
+  )).sort().reverse();
+
+  // Фильтруем задачи по выбранному месяцу
+  const filteredTasks = selectedMonth === 'all' 
+    ? completedTasks 
+    : completedTasks.filter(t => {
+        if (!t.completedAt) return false;
+        const date = new Date(t.completedAt);
+        const taskMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        return taskMonth === selectedMonth;
+      });
+
+  const getMonthName = (monthKey: string) => {
+    const [year, month] = monthKey.split('-');
+    const date = new Date(parseInt(year), parseInt(month) - 1);
+    return date.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
+  };
 
   const getTaskAssignments = (taskId: string) => {
     return assignments
@@ -76,8 +103,57 @@ export default function CompletedTasksList({ tasks, assignments, days, onReturnT
         </button>
 
         {isExpanded && (
-          <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {completedTasks.map(task => (
+          <>
+            {/* Фильтр по месяцам */}
+            {availableMonths.length > 1 && (
+              <div style={{ 
+                marginTop: 12, 
+                marginBottom: 12,
+                display: 'flex', 
+                flexWrap: 'wrap',
+                gap: 6 
+              }}>
+                <button
+                  onClick={() => setSelectedMonth('all')}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: 8,
+                    border: `1px solid ${selectedMonth === 'all' ? theme.accent1 : theme.borderPrimary}`,
+                    background: selectedMonth === 'all' ? theme.accent1 : 'transparent',
+                    color: selectedMonth === 'all' ? '#fff' : theme.textSecondary,
+                    fontSize: 12,
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  Все
+                </button>
+                {availableMonths.map(month => (
+                  <button
+                    key={month}
+                    onClick={() => setSelectedMonth(month)}
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: 8,
+                      border: `1px solid ${selectedMonth === month ? theme.accent1 : theme.borderPrimary}`,
+                      background: selectedMonth === month ? theme.accent1 : 'transparent',
+                      color: selectedMonth === month ? '#fff' : theme.textSecondary,
+                      fontSize: 12,
+                      fontWeight: 500,
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      textTransform: 'capitalize'
+                    }}
+                  >
+                    {getMonthName(month)}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {filteredTasks.map(task => (
               <div
                 key={task.id}
                 style={{
@@ -101,14 +177,22 @@ export default function CompletedTasksList({ tasks, assignments, days, onReturnT
                     width: 8, height: 8, borderRadius: '50%',
                     background: task.color
                   }} />
-                  <span style={{ fontSize: 13, color: theme.textPrimary }}>{task.title}</span>
+                  <div>
+                    <span style={{ fontSize: 13, color: theme.textPrimary }}>{task.title}</span>
+                    {task.completedAt && (
+                      <div style={{ fontSize: 11, color: theme.textTertiary, marginTop: 2 }}>
+                        {new Date(task.completedAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <span style={{ fontSize: 12, color: theme.textTertiary }}>
                   {formatHours(task.totalHours)}
                 </span>
               </div>
             ))}
-          </div>
+            </div>
+          </>
         )}
       </div>
 
