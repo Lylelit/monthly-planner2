@@ -4,81 +4,52 @@ import { getMonthWeeks, getMonthName, generateId, HOURS_PER_DAY } from './utils/
 import TaskForm from './components/TaskForm';
 import TaskCard from './components/TaskCard';
 import DayColumn from './components/DayColumn';
-import AuthScreen from './components/AuthScreen';
-import GroupsManager from './components/GroupsManager';
-import { loadTasks, loadAssignments, saveTasks, saveAssignments, getStorageMode, setCurrentUser as setStorageUser } from './services/storageService';
-import { getCurrentUser, signOut, UserProfile, onAuthStateChange } from './services/authService';
+import AuthScreen, { Profile } from './components/AuthScreen';
+import { loadTasks, loadAssignments, saveTasks, saveAssignments, setCurrentProfile } from './services/storageService';
 import { useTheme } from './ThemeContext';
 
 function App() {
   const { theme, mode, toggleTheme } = useTheme();
-  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
-  const [authLoading, setAuthLoading] = useState(true);
-  const [showGroups, setShowGroups] = useState(false);
-  
+  const [currentUser, setCurrentUser] = useState<Profile | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
+
   const now = new Date();
   const [currentYear, setCurrentYear] = useState(now.getFullYear());
   const [currentMonth, setCurrentMonth] = useState(now.getMonth());
-  const [tasks, setTasks] = useState<Task[]>(() => {
-    return [
-      { id: 'demo-1', title: 'Разработка API', totalHours: 12, color: '#3996D3' },
-      { id: 'demo-2', title: 'Дизайн интерфейса', totalHours: 8, color: '#EF7D00' },
-      { id: 'demo-3', title: 'Тестирование', totalHours: 6, color: '#89BC6B' },
-    ];
-  });
-  const [assignments, setAssignments] = useState<TaskAssignment[]>(() => {
-    const weeks = getMonthWeeks(now.getFullYear(), now.getMonth());
-    if (weeks.length > 0 && weeks[0].days.length > 0) {
-      return [
-        { id: 'asgn-1', taskId: 'demo-1', dayId: weeks[0].days[0].id, hours: 4, order: 1 },
-        { id: 'asgn-2', taskId: 'demo-2', dayId: weeks[0].days[0].id, hours: 3, order: 2 },
-        { id: 'asgn-3', taskId: 'demo-1', dayId: weeks[0].days[1].id, hours: 5, order: 1 },
-        { id: 'asgn-4', taskId: 'demo-3', dayId: weeks[0].days[2].id, hours: 6, order: 1 },
-      ];
-    }
-    return [];
-  });
-  const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [assignments, setAssignments] = useState<TaskAssignment[]>([]);
+  const [, setDraggedTaskId] = useState<string | null>(null);
   const [showHint, setShowHint] = useState(() => {
     return !localStorage.getItem('planner-hint-dismissed');
   });
   const [isLoading, setIsLoading] = useState(true);
 
-  // Проверка авторизации
+  // Проверка авторизации при старте
   useEffect(() => {
-    async function checkAuth() {
+    const savedLogin = localStorage.getItem('planner-current-user');
+    if (savedLogin) {
       try {
-        const user = await getCurrentUser();
-        setCurrentUser(user);
-        if (user) {
-          setStorageUser(user.id, null);
+        const profiles = JSON.parse(localStorage.getItem('planner-profiles') || '[]');
+        const profile = profiles.find((p: Profile) => p.login === savedLogin);
+        if (profile) {
+          setCurrentUser(profile);
+          setCurrentProfile(profile);
         }
-      } catch (error) {
-        console.error('Auth error:', error);
-      } finally {
-        setAuthLoading(false);
+      } catch (e) {
+        console.error('Error loading profile:', e);
       }
     }
-    
-    checkAuth();
-
-    // Подписка на изменения авторизации
-    const { data: { subscription } } = onAuthStateChange((user) => {
-      setCurrentUser(user);
-      if (user) {
-        setStorageUser(user.id, null);
-      } else {
-        setStorageUser(null, null);
-      }
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
+    setAuthChecked(true);
   }, []);
 
+  // Загрузка данных при входе
   useEffect(() => {
     async function loadData() {
+      if (!currentUser) {
+        setIsLoading(false);
+        return;
+      }
+
       try {
         const [savedTasks, savedAssignments] = await Promise.all([
           loadTasks(),
@@ -92,16 +63,14 @@ function App() {
         setIsLoading(false);
       }
     }
-    
-    if (currentUser) {
-      loadData();
-    } else {
-      setIsLoading(false);
-    }
-  }, [currentUser]);
 
-  useEffect(() => { if (!isLoading) saveTasks(tasks); }, [tasks, isLoading]);
-  useEffect(() => { if (!isLoading) saveAssignments(assignments); }, [assignments, isLoading]);
+    if (authChecked) {
+      loadData();
+    }
+  }, [currentUser, authChecked]);
+
+  useEffect(() => { if (!isLoading && currentUser) saveTasks(tasks); }, [tasks, isLoading, currentUser]);
+  useEffect(() => { if (!isLoading && currentUser) saveAssignments(assignments); }, [assignments, isLoading, currentUser]);
 
   const weeks = useMemo(() => getMonthWeeks(currentYear, currentMonth), [currentYear, currentMonth]);
 
@@ -177,7 +146,7 @@ function App() {
 
   const totalTaskHours = tasks.reduce((sum, t) => sum + t.totalHours, 0);
   const totalAssignedHours = assignments.reduce((sum, a) => sum + a.hours, 0);
-  
+
   // Расчёт общего рабочего времени за месяц (8 часов × рабочие дни)
   const workingDaysInMonth = weeks.reduce((count, week) => {
     return count + week.days.filter(day => day.isWorkingDay).length;
@@ -189,18 +158,23 @@ function App() {
     return assignments.filter((a) => a.taskId === taskId).reduce((sum, a) => sum + a.hours, 0);
   };
 
-  const handleSignOut = async () => {
-    try {
-      await signOut();
-      setCurrentUser(null);
-      setTasks([]);
-      setAssignments([]);
-    } catch (error) {
-      console.error('Sign out error:', error);
-    }
+  const handleLogin = (profile: Profile) => {
+    setCurrentUser(profile);
+    setCurrentProfile(profile);
+    localStorage.setItem('planner-current-user', profile.login);
+    setIsLoading(true);
   };
 
-  if (authLoading) {
+  const handleSignOut = () => {
+    setCurrentUser(null);
+    setCurrentProfile(null);
+    localStorage.removeItem('planner-current-user');
+    setTasks([]);
+    setAssignments([]);
+  };
+
+  // Экран авторизации
+  if (!authChecked) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: theme.bgPrimary }}>
         <div style={{ textAlign: 'center' }}>
@@ -216,7 +190,7 @@ function App() {
   }
 
   if (!currentUser) {
-    return <AuthScreen onAuthSuccess={() => {}} />;
+    return <AuthScreen onLogin={handleLogin} />;
   }
 
   if (isLoading) {
@@ -298,24 +272,6 @@ function App() {
 
           {/* Stats & Theme toggle */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            {/* Groups button */}
-            <button onClick={() => setShowGroups(!showGroups)} style={{
-              padding: 8, borderRadius: 8, border: `1px solid ${theme.borderPrimary}`,
-              background: showGroups ? theme.accent1 : theme.bgSecondary, 
-              color: showGroups ? 'white' : theme.textSecondary,
-              cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: 4
-            }}
-              onMouseEnter={e => {
-                if (!showGroups) e.currentTarget.style.background = theme.bgHover;
-              }}
-              onMouseLeave={e => {
-                if (!showGroups) e.currentTarget.style.background = theme.bgSecondary;
-              }}
-            >
-              👥
-              <span style={{ fontSize: 12 }}>Группы</span>
-            </button>
-
             {/* Theme toggle */}
             <button onClick={toggleTheme} style={{
               padding: 8, borderRadius: 8, border: `1px solid ${theme.borderPrimary}`,
@@ -332,9 +288,9 @@ function App() {
             {/* User info & logout */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: 12, color: theme.textTertiary }}>Пользователь</div>
+                <div style={{ fontSize: 12, color: theme.textTertiary }}>Профиль</div>
                 <div style={{ fontSize: 14, fontWeight: 600, color: theme.textPrimary }}>
-                  {currentUser.display_name || currentUser.username || currentUser.email}
+                  {currentUser.displayName}
                 </div>
               </div>
               <button onClick={handleSignOut} style={{
@@ -352,7 +308,7 @@ function App() {
                   e.currentTarget.style.color = theme.textSecondary;
                   e.currentTarget.style.borderColor = theme.borderPrimary;
                 }}
-                title="Выйти"
+                title="Выйти из профиля"
               >
                 <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -360,15 +316,6 @@ function App() {
               </button>
             </div>
 
-            <div style={{
-              padding: '4px 8px', borderRadius: 6, fontSize: 12, fontWeight: 500,
-              background: getStorageMode() === 'supabase' ? `${theme.success}15` : theme.bgSecondary,
-              color: getStorageMode() === 'supabase' ? theme.success : theme.textTertiary,
-              border: `1px solid ${getStorageMode() === 'supabase' ? `${theme.success}30` : theme.borderPrimary}`
-            }}>
-              {getStorageMode() === 'supabase' ? '☁️ Облако' : '💾 Локально'}
-            </div>
-            
             <div style={{ textAlign: 'right' }}>
               <div style={{ fontSize: 12, color: theme.textTertiary }}>Задачи</div>
               <div style={{ fontSize: 14, fontWeight: 700, color: theme.textPrimary }}>{tasks.length} шт / {totalTaskHours}ч</div>
@@ -385,11 +332,9 @@ function App() {
             </div>
             <button
               onClick={() => {
-                if (confirm('Очистить все данные?')) {
+                if (confirm('Очистить все данные текущего профиля?')) {
                   setTasks([]);
                   setAssignments([]);
-                  localStorage.removeItem('planner-tasks');
-                  localStorage.removeItem('planner-assignments');
                 }
               }}
               style={{
@@ -398,7 +343,7 @@ function App() {
               }}
               onMouseEnter={e => (e.currentTarget.style.color = theme.danger)}
               onMouseLeave={e => (e.currentTarget.style.color = theme.textTertiary)}
-              title="Очистить все данные"
+              title="Очистить данные профиля"
             >
               <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -407,10 +352,6 @@ function App() {
           </div>
         </div>
       </header>
-
-      <div style={{ maxWidth: 1800, margin: '0 auto', padding: '16px 16px 0' }}>
-        {showGroups && <GroupsManager />}
-      </div>
 
       <div style={{ maxWidth: 1800, margin: '0 auto', display: 'flex', gap: 16, padding: 16 }}>
         {/* Sidebar */}

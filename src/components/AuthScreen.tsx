@@ -1,59 +1,138 @@
 import { useState } from 'react';
 import { useTheme } from '../ThemeContext';
-import { signIn, signUp } from '../services/authService';
 
-interface AuthScreenProps {
-  onAuthSuccess: () => void;
+interface Profile {
+  login: string;
+  password: string;
+  displayName: string;
+  createdAt: string;
 }
 
-export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
-  const { theme } = useTheme();
-  const [isLogin, setIsLogin] = useState(true);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [username, setUsername] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+interface ProfileData {
+  tasks: any[];
+  assignments: any[];
+}
 
-  const handleSubmit = async (e: React.FormEvent) => {
+interface AuthScreenProps {
+  onLogin: (profile: Profile) => void;
+}
+
+const PROFILES_KEY = 'planner-profiles';
+const DATA_KEY = 'planner-data-';
+
+function getProfiles(): Profile[] {
+  try {
+    const saved = localStorage.getItem(PROFILES_KEY);
+    return saved ? JSON.parse(saved) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveProfiles(profiles: Profile[]) {
+  localStorage.setItem(PROFILES_KEY, JSON.stringify(profiles));
+}
+
+function getProfileData(login: string): ProfileData {
+  try {
+    const saved = localStorage.getItem(DATA_KEY + login);
+    return saved ? JSON.parse(saved) : { tasks: [], assignments: [] };
+  } catch {
+    return { tasks: [], assignments: [] };
+  }
+}
+
+function saveProfileData(login: string, data: ProfileData) {
+  localStorage.setItem(DATA_KEY + login, JSON.stringify(data));
+}
+
+export { getProfiles, saveProfiles, getProfileData, saveProfileData, PROFILES_KEY, DATA_KEY };
+export type { Profile, ProfileData };
+
+export default function AuthScreen({ onLogin }: AuthScreenProps) {
+  const { theme } = useTheme();
+  const [mode, setMode] = useState<'select' | 'login' | 'register'>('select');
+  const [login, setLogin] = useState('');
+  const [password, setPassword] = useState('');
+  const [displayName, setDisplayName] = useState('');
+  const [error, setError] = useState('');
+  const [profiles] = useState<Profile[]>(getProfiles());
+
+  const handleRegister = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setLoading(true);
 
-    try {
-      if (isLogin) {
-        await signIn(email, password);
-      } else {
-        if (!username.trim()) {
-          throw new Error('Введите имя пользователя');
-        }
-        await signUp(email, password, username);
-      }
-      onAuthSuccess();
-    } catch (err: any) {
-      console.error('Auth error:', err);
-      
-      // Более понятные сообщения об ошибках
-      let errorMessage = 'Произошла ошибка';
-      
-      if (err.message?.includes('Failed to fetch')) {
-        errorMessage = 'Не удалось подключиться к серверу. Проверьте подключение к интернету.';
-      } else if (err.message?.includes('Invalid login credentials')) {
-        errorMessage = 'Неверный email или пароль';
-      } else if (err.message?.includes('Email not confirmed')) {
-        errorMessage = 'Email не подтверждён. Проверьте почту или обратитесь к администратору.';
-      } else if (err.message?.includes('User already registered')) {
-        errorMessage = 'Пользователь с таким email уже существует';
-      } else if (err.message?.includes('Password')) {
-        errorMessage = 'Пароль должен быть не менее 6 символов';
-      } else if (err.message) {
-        errorMessage = err.message;
-      }
-      
-      setError(errorMessage);
-    } finally {
-      setLoading(false);
+    if (!login.trim() || !password.trim() || !displayName.trim()) {
+      setError('Заполните все поля');
+      return;
     }
+
+    if (password.length < 3) {
+      setError('Пароль должен быть не менее 3 символов');
+      return;
+    }
+
+    const existingProfiles = getProfiles();
+    if (existingProfiles.find(p => p.login.toLowerCase() === login.toLowerCase())) {
+      setError('Такой логин уже существует');
+      return;
+    }
+
+    const newProfile: Profile = {
+      login: login.trim(),
+      password: password,
+      displayName: displayName.trim(),
+      createdAt: new Date().toISOString()
+    };
+
+    const updatedProfiles = [...existingProfiles, newProfile];
+    saveProfiles(updatedProfiles);
+    saveProfileData(newProfile.login, { tasks: [], assignments: [] });
+
+    onLogin(newProfile);
+  };
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    if (!login.trim() || !password.trim()) {
+      setError('Введите логин и пароль');
+      return;
+    }
+
+    const existingProfiles = getProfiles();
+    const profile = existingProfiles.find(
+      p => p.login.toLowerCase() === login.toLowerCase() && p.password === password
+    );
+
+    if (!profile) {
+      setError('Неверный логин или пароль');
+      return;
+    }
+
+    onLogin(profile);
+  };
+
+  const handleSelectProfile = (profile: Profile) => {
+    setLogin(profile.login);
+    setPassword(profile.password);
+    setMode('login');
+    // Автоматический вход при выборе профиля
+    onLogin(profile);
+  };
+
+  const inputStyle = {
+    width: '100%',
+    padding: '12px',
+    background: theme.bgSecondary,
+    border: `1px solid ${theme.borderPrimary}`,
+    borderRadius: '8px',
+    color: theme.textPrimary,
+    fontSize: '14px',
+    outline: 'none',
+    transition: 'border-color 0.2s',
+    boxSizing: 'border-box' as const
   };
 
   return (
@@ -92,43 +171,114 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
             Месячный планировщик
           </h1>
           <p style={{ fontSize: '14px', color: theme.textSecondary, margin: 0 }}>
-            {isLogin ? 'Войдите в свой аккаунт' : 'Создайте новый аккаунт'}
+            {mode === 'select' && profiles.length > 0 ? 'Выберите профиль' : 
+             mode === 'login' ? 'Вход в систему' : 'Создание профиля'}
           </p>
         </div>
 
-        <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: '16px' }}>
-            <label style={{
-              display: 'block',
-              fontSize: '14px',
-              fontWeight: 500,
-              color: theme.textSecondary,
-              marginBottom: '8px'
-            }}>
-              Email
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              style={{
-                width: '100%',
-                padding: '12px',
-                background: theme.bgSecondary,
-                border: `1px solid ${theme.borderPrimary}`,
-                borderRadius: '8px',
-                color: theme.textPrimary,
-                fontSize: '14px',
-                outline: 'none',
-                transition: 'border-color 0.2s'
-              }}
-              onFocus={(e) => e.currentTarget.style.borderColor = theme.accent1}
-              onBlur={(e) => e.currentTarget.style.borderColor = theme.borderPrimary}
-            />
-          </div>
+        {/* Режим выбора профиля */}
+        {mode === 'select' && (
+          <>
+            {profiles.length > 0 && (
+              <div style={{ marginBottom: '24px' }}>
+                <div style={{ 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  gap: '8px',
+                  marginBottom: '16px'
+                }}>
+                  {profiles.map(profile => (
+                    <button
+                      key={profile.login}
+                      onClick={() => handleSelectProfile(profile)}
+                      style={{
+                        padding: '12px 16px',
+                        background: theme.bgSecondary,
+                        border: `1px solid ${theme.borderPrimary}`,
+                        borderRadius: '8px',
+                        color: theme.textPrimary,
+                        fontSize: '14px',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        transition: 'all 0.2s',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px'
+                      }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.borderColor = theme.accent1;
+                        e.currentTarget.style.background = theme.bgHover;
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.borderColor = theme.borderPrimary;
+                        e.currentTarget.style.background = theme.bgSecondary;
+                      }}
+                    >
+                      <div style={{
+                        width: '36px',
+                        height: '36px',
+                        borderRadius: '50%',
+                        background: theme.accent1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: 'white',
+                        fontWeight: 600,
+                        fontSize: '14px',
+                        flexShrink: 0
+                      }}>
+                        {profile.displayName.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: 600 }}>{profile.displayName}</div>
+                        <div style={{ fontSize: '12px', color: theme.textTertiary }}>@{profile.login}</div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
-          {!isLogin && (
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                onClick={() => setMode('login')}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  background: theme.bgSecondary,
+                  color: theme.textPrimary,
+                  border: `1px solid ${theme.borderPrimary}`,
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  cursor: 'pointer'
+                }}
+              >
+                Войти
+              </button>
+              <button
+                onClick={() => setMode('register')}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  background: theme.accent1,
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  cursor: 'pointer'
+                }}
+              >
+                Новый профиль
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* Режим входа */}
+        {mode === 'login' && (
+          <form onSubmit={handleLogin}>
             <div style={{ marginBottom: '16px' }}>
               <label style={{
                 display: 'block',
@@ -137,116 +287,222 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
                 color: theme.textSecondary,
                 marginBottom: '8px'
               }}>
-                Имя пользователя
+                Логин
               </label>
               <input
                 type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                required
-                style={{
-                  width: '100%',
-                  padding: '12px',
-                  background: theme.bgSecondary,
-                  border: `1px solid ${theme.borderPrimary}`,
-                  borderRadius: '8px',
-                  color: theme.textPrimary,
-                  fontSize: '14px',
-                  outline: 'none',
-                  transition: 'border-color 0.2s'
-                }}
+                value={login}
+                onChange={(e) => setLogin(e.target.value)}
+                style={inputStyle}
+                onFocus={(e) => e.currentTarget.style.borderColor = theme.accent1}
+                onBlur={(e) => e.currentTarget.style.borderColor = theme.borderPrimary}
+                autoFocus
+              />
+            </div>
+
+            <div style={{ marginBottom: '24px' }}>
+              <label style={{
+                display: 'block',
+                fontSize: '14px',
+                fontWeight: 500,
+                color: theme.textSecondary,
+                marginBottom: '8px'
+              }}>
+                Пароль
+              </label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                style={inputStyle}
                 onFocus={(e) => e.currentTarget.style.borderColor = theme.accent1}
                 onBlur={(e) => e.currentTarget.style.borderColor = theme.borderPrimary}
               />
             </div>
-          )}
 
-          <div style={{ marginBottom: '24px' }}>
-            <label style={{
-              display: 'block',
-              fontSize: '14px',
-              fontWeight: 500,
-              color: theme.textSecondary,
-              marginBottom: '8px'
-            }}>
-              Пароль
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={6}
+            {error && (
+              <div style={{
+                padding: '12px',
+                background: `${theme.danger}15`,
+                border: `1px solid ${theme.danger}30`,
+                borderRadius: '8px',
+                color: theme.danger,
+                fontSize: '14px',
+                marginBottom: '16px'
+              }}>
+                {error}
+              </div>
+            )}
+
+            <button
+              type="submit"
               style={{
                 width: '100%',
                 padding: '12px',
-                background: theme.bgSecondary,
-                border: `1px solid ${theme.borderPrimary}`,
+                background: theme.accent1,
+                color: 'white',
+                border: 'none',
                 borderRadius: '8px',
-                color: theme.textPrimary,
                 fontSize: '14px',
-                outline: 'none',
-                transition: 'border-color 0.2s'
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'opacity 0.2s'
               }}
-              onFocus={(e) => e.currentTarget.style.borderColor = theme.accent1}
-              onBlur={(e) => e.currentTarget.style.borderColor = theme.borderPrimary}
-            />
-          </div>
+              onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.9')}
+              onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
+            >
+              Войти
+            </button>
 
-          {error && (
-            <div style={{
-              padding: '12px',
-              background: `${theme.danger}15`,
-              border: `1px solid ${theme.danger}30`,
-              borderRadius: '8px',
-              color: theme.danger,
-              fontSize: '14px',
-              marginBottom: '16px'
-            }}>
-              {error}
+            <button
+              type="button"
+              onClick={() => {
+                setMode('select');
+                setError('');
+                setLogin('');
+                setPassword('');
+              }}
+              style={{
+                width: '100%',
+                marginTop: '12px',
+                padding: '12px',
+                background: 'transparent',
+                color: theme.textSecondary,
+                border: 'none',
+                fontSize: '14px',
+                cursor: 'pointer'
+              }}
+            >
+              ← Назад к выбору профиля
+            </button>
+          </form>
+        )}
+
+        {/* Режим регистрации */}
+        {mode === 'register' && (
+          <form onSubmit={handleRegister}>
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{
+                display: 'block',
+                fontSize: '14px',
+                fontWeight: 500,
+                color: theme.textSecondary,
+                marginBottom: '8px'
+              }}>
+                Отображаемое имя
+              </label>
+              <input
+                type="text"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                placeholder="Например: Иван"
+                style={inputStyle}
+                onFocus={(e) => e.currentTarget.style.borderColor = theme.accent1}
+                onBlur={(e) => e.currentTarget.style.borderColor = theme.borderPrimary}
+                autoFocus
+              />
             </div>
-          )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              width: '100%',
-              padding: '12px',
-              background: loading ? theme.textTertiary : theme.accent1,
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              fontSize: '14px',
-              fontWeight: 600,
-              cursor: loading ? 'not-allowed' : 'pointer',
-              transition: 'opacity 0.2s'
-            }}
-            onMouseEnter={(e) => !loading && (e.currentTarget.style.opacity = '0.9')}
-            onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
-          >
-            {loading ? 'Загрузка...' : isLogin ? 'Войти' : 'Зарегистрироваться'}
-          </button>
-        </form>
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{
+                display: 'block',
+                fontSize: '14px',
+                fontWeight: 500,
+                color: theme.textSecondary,
+                marginBottom: '8px'
+              }}>
+                Логин
+              </label>
+              <input
+                type="text"
+                value={login}
+                onChange={(e) => setLogin(e.target.value)}
+                placeholder="Латинские буквы и цифры"
+                style={inputStyle}
+                onFocus={(e) => e.currentTarget.style.borderColor = theme.accent1}
+                onBlur={(e) => e.currentTarget.style.borderColor = theme.borderPrimary}
+              />
+            </div>
 
-        <div style={{ textAlign: 'center', marginTop: '24px' }}>
-          <button
-            onClick={() => {
-              setIsLogin(!isLogin);
-              setError('');
-            }}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: theme.accent1,
-              fontSize: '14px',
-              cursor: 'pointer',
-              textDecoration: 'underline'
-            }}
-          >
-            {isLogin ? 'Нет аккаунта? Зарегистрируйтесь' : 'Уже есть аккаунт? Войдите'}
-          </button>
-        </div>
+            <div style={{ marginBottom: '24px' }}>
+              <label style={{
+                display: 'block',
+                fontSize: '14px',
+                fontWeight: 500,
+                color: theme.textSecondary,
+                marginBottom: '8px'
+              }}>
+                Пароль
+              </label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Минимум 3 символа"
+                style={inputStyle}
+                onFocus={(e) => e.currentTarget.style.borderColor = theme.accent1}
+                onBlur={(e) => e.currentTarget.style.borderColor = theme.borderPrimary}
+              />
+            </div>
+
+            {error && (
+              <div style={{
+                padding: '12px',
+                background: `${theme.danger}15`,
+                border: `1px solid ${theme.danger}30`,
+                borderRadius: '8px',
+                color: theme.danger,
+                fontSize: '14px',
+                marginBottom: '16px'
+              }}>
+                {error}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              style={{
+                width: '100%',
+                padding: '12px',
+                background: theme.accent1,
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '14px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'opacity 0.2s'
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.9')}
+              onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
+            >
+              Создать профиль
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setMode('select');
+                setError('');
+                setLogin('');
+                setPassword('');
+                setDisplayName('');
+              }}
+              style={{
+                width: '100%',
+                marginTop: '12px',
+                padding: '12px',
+                background: 'transparent',
+                color: theme.textSecondary,
+                border: 'none',
+                fontSize: '14px',
+                cursor: 'pointer'
+              }}
+            >
+              ← Назад к выбору профиля
+            </button>
+          </form>
+        )}
       </div>
     </div>
   );
