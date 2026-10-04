@@ -115,7 +115,7 @@ export default function TaskForm({ onAddTask }: Props) {
         </div>
         <input
           type="text"
-          placeholder="Или введите чч:мм"
+          placeholder="или введите чч:мм"
           value={hours}
           onChange={(e) => setHours(e.target.value)}
           style={{
@@ -134,6 +134,9 @@ export default function TaskForm({ onAddTask }: Props) {
             }
           }}
         />
+        <div style={{ fontSize: 11, color: theme.textTertiary, marginTop: 4, textAlign: 'center' }}>
+          порог 15 минут
+        </div>
       </div>
       <div>
         <label style={{ fontSize: 12, color: theme.textTertiary, marginBottom: 4, display: 'block' }}>Цвет</label>

@@ -255,7 +255,7 @@ export default function DayColumn({ day, tasks, assignments, onDropTask, onRemov
             <div style={{ width: '100%', marginTop: 8 }}>
               <input
                 type="text"
-                placeholder="чч:мм"
+                placeholder="или введите чч:мм"
                 style={{
                   width: '100%', padding: '8px 12px', borderRadius: 8, fontSize: 13,
                   border: `1px solid ${theme.borderPrimary}`, background: theme.bgCard,
@@ -263,7 +263,13 @@ export default function DayColumn({ day, tasks, assignments, onDropTask, onRemov
                   boxSizing: 'border-box'
                 }}
                 onFocus={e => e.currentTarget.style.borderColor = theme.accent1}
-                onBlur={e => e.currentTarget.style.borderColor = theme.borderPrimary}
+                onBlur={e => {
+                  e.currentTarget.style.borderColor = theme.borderPrimary;
+                  const parsed = parseTimeInput(e.currentTarget.value);
+                  if (parsed !== null && parsed > 0 && parsed <= freeHours) {
+                    handleQuickDrop(parsed);
+                  }
+                }}
                 onKeyDown={e => {
                   if (e.key === 'Enter') {
                     const value = (e.target as HTMLInputElement).value;
@@ -274,6 +280,9 @@ export default function DayColumn({ day, tasks, assignments, onDropTask, onRemov
                   }
                 }}
               />
+              <div style={{ fontSize: 10, color: theme.textTertiary, marginTop: 4, textAlign: 'center' }}>
+                порог 15 минут
+              </div>
             </div>
           </div>
           <button

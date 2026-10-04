@@ -31,8 +31,16 @@ export default function TaskCard({ task, assignedHours, totalAssignedHours, onDr
         borderLeft: `4px solid ${task.color}`,
         boxShadow: theme.shadow
       }}
-      onMouseEnter={e => { e.currentTarget.style.boxShadow = theme.shadowLg; e.currentTarget.style.borderColor = theme.borderSecondary; }}
-      onMouseLeave={e => { e.currentTarget.style.boxShadow = theme.shadow; e.currentTarget.style.borderColor = theme.borderPrimary; }}
+      onMouseEnter={e => { 
+        e.currentTarget.style.boxShadow = theme.shadowLg; 
+        e.currentTarget.style.borderColor = theme.borderSecondary;
+        e.currentTarget.style.borderLeft = `4px solid ${task.color}`;
+      }}
+      onMouseLeave={e => { 
+        e.currentTarget.style.boxShadow = theme.shadow; 
+        e.currentTarget.style.borderColor = theme.borderPrimary;
+        e.currentTarget.style.borderLeft = `4px solid ${task.color}`;
+      }}
     >
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
