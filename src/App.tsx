@@ -105,14 +105,13 @@ function App() {
     setTasks((prev) => [...prev.map((t) => t.id === taskId ? { ...t, totalHours: totalAssigned + splitHours } : t), newTask]);
   }, [tasks, assignments]);
 
-  const splitAssignment = useCallback((assignmentId: string) => {
+  const splitAssignment = useCallback((assignmentId: string, hoursToSplit: number) => {
     const assignment = assignments.find((a) => a.id === assignmentId);
-    if (!assignment || assignment.hours <= 0.5) return;
-    const half = Math.floor(assignment.hours / 2);
-    const rest = assignment.hours - half;
+    if (!assignment || hoursToSplit <= 0 || hoursToSplit >= assignment.hours) return;
+    const rest = assignment.hours - hoursToSplit;
     setAssignments((prev) => {
       const filtered = prev.filter((a) => a.id !== assignmentId);
-      return [...filtered, { ...assignment, hours: half }, { ...assignment, id: generateId(), hours: rest, order: assignment.order + 0.5 }];
+      return [...filtered, { ...assignment, hours: hoursToSplit }, { ...assignment, id: generateId(), hours: rest, order: assignment.order + 0.5 }];
     });
   }, [assignments]);
 
@@ -497,7 +496,7 @@ interface WeekRowProps {
   assignments: TaskAssignment[];
   onDropTask: (taskId: string, dayId: string, hours: number) => void;
   onRemoveAssignment: (assignmentId: string) => void;
-  onSplitAssignment: (assignmentId: string) => void;
+  onSplitAssignment: (assignmentId: string, hoursToSplit: number) => void;
   onMoveAssignment: (assignmentId: string, newDayId: string) => void;
 }
 

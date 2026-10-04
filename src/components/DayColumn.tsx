@@ -10,7 +10,7 @@ interface Props {
   assignments: TaskAssignment[];
   onDropTask: (taskId: string, dayId: string, hours: number) => void;
   onRemoveAssignment: (assignmentId: string) => void;
-  onSplitAssignment: (assignmentId: string) => void;
+  onSplitAssignment: (assignmentId: string, hoursToSplit: number) => void;
   onMoveAssignment: (assignmentId: string, newDayId: string) => void;
 }
 
@@ -20,6 +20,8 @@ export default function DayColumn({ day, tasks, assignments, onDropTask, onRemov
   const [showDropMenu, setShowDropMenu] = useState(false);
   const [pendingTaskId, setPendingTaskId] = useState<string | null>(null);
   const [pendingAssignmentId, setPendingAssignmentId] = useState<string | null>(null);
+  const [showSplitMenu, setShowSplitMenu] = useState(false);
+  const [splittingAssignmentId, setSplittingAssignmentId] = useState<string | null>(null);
 
   const dayAssignments = assignments
     .filter((a) => a.dayId === day.id)
@@ -178,7 +180,11 @@ export default function DayColumn({ day, tasks, assignments, onDropTask, onRemov
                     {formatHours(assignment.hours)}
                   </span>
                   <button
-                    onClick={(e) => { e.stopPropagation(); onSplitAssignment(assignment.id); }}
+                    onClick={(e) => { 
+                      e.stopPropagation(); 
+                      setSplittingAssignmentId(assignment.id);
+                      setShowSplitMenu(true);
+                    }}
                     className="day-task-btn"
                     style={{
                       padding: 4, borderRadius: 4, border: 'none', cursor: 'pointer',
@@ -227,7 +233,19 @@ export default function DayColumn({ day, tasks, assignments, onDropTask, onRemov
       </div>
 
       {/* Drop menu */}
-      {showDropMenu && pendingTaskId && (
+      {showDropMenu && pendingTaskId && (() => {
+        const task = tasks.find(t => t.id === pendingTaskId);
+        if (!task) return null;
+        
+        // Рассчитываем уже назначенное время для этой задачи
+        const alreadyAssigned = assignments
+          .filter(a => a.taskId === pendingTaskId)
+          .reduce((sum, a) => sum + a.hours, 0);
+        
+        // Максимальное время которое можно назначить (ограничено общим временем задачи и свободным временем дня)
+        const maxAssignable = Math.min(task.totalHours - alreadyAssigned, freeHours);
+        
+        return (
         <div style={{
           position: 'absolute', inset: 0, background: `${theme.bgCard}f5`, backdropFilter: 'blur(4px)',
           borderRadius: 12, zIndex: 10, display: 'flex', flexDirection: 'column',
@@ -235,7 +253,9 @@ export default function DayColumn({ day, tasks, assignments, onDropTask, onRemov
           border: `2px solid ${theme.accent1}50`, boxShadow: theme.shadowLg
         }}>
           <p style={{ fontSize: 12, color: theme.textSecondary, marginBottom: 4, fontWeight: 500 }}>Сколько часов назначить?</p>
-          <p style={{ fontSize: 10, color: theme.textTertiary, marginBottom: 12 }}>Свободно: {formatHours(freeHours)} из 8ч</p>
+          <p style={{ fontSize: 10, color: theme.textTertiary, marginBottom: 12 }}>
+            Свободно: {formatHours(freeHours)} из 8ч • Задача: {formatHours(task.totalHours)}
+          </p>
           
           {/* Кнопки выбора времени - 4 в ряд */}
           <div style={{ 
@@ -245,7 +265,7 @@ export default function DayColumn({ day, tasks, assignments, onDropTask, onRemov
             marginBottom: 12,
             width: '100%'
           }}>
-            {[0.25, 0.5, 1, 1.5, 2, 2.5, 3, 4].filter(h => h <= freeHours).map((h) => (
+            {[0.25, 0.5, 1, 1.5, 2, 2.5, 3, 4].filter(h => h <= maxAssignable).map((h) => (
               <button
                 key={h}
                 onClick={() => handleQuickDrop(h)}
@@ -304,7 +324,104 @@ export default function DayColumn({ day, tasks, assignments, onDropTask, onRemov
             Отмена
           </button>
         </div>
-      )}
+        );
+      })()}
+
+      {/* Split menu */}
+      {showSplitMenu && splittingAssignmentId && (() => {
+        const assignment = assignments.find(a => a.id === splittingAssignmentId);
+        if (!assignment) return null;
+        
+        const handleSplit = (hours: number) => {
+          if (hours > 0 && hours < assignment.hours) {
+            onSplitAssignment(splittingAssignmentId, hours);
+            setShowSplitMenu(false);
+            setSplittingAssignmentId(null);
+          }
+        };
+
+        return (
+          <div style={{
+            position: 'absolute', inset: 0, background: `${theme.bgCard}f5`, backdropFilter: 'blur(4px)',
+            borderRadius: 12, zIndex: 10, display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center', padding: 16,
+            border: `2px solid ${theme.accent1}50`, boxShadow: theme.shadowLg
+          }}>
+            <p style={{ fontSize: 12, color: theme.textSecondary, marginBottom: 4, fontWeight: 500 }}>Сколько времени отделить?</p>
+            <p style={{ fontSize: 10, color: theme.textTertiary, marginBottom: 12 }}>Текущее время: {formatHours(assignment.hours)}</p>
+            
+            {/* Кнопки выбора времени - 4 в ряд */}
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(4, 1fr)', 
+              gap: 6, 
+              marginBottom: 12,
+              width: '100%'
+            }}>
+              {[0.25, 0.5, 1, 1.5, 2, 2.5, 3, 4]
+                .filter(h => h < assignment.hours)
+                .map((h) => (
+                  <button
+                    key={h}
+                    onClick={() => handleSplit(h)}
+                    style={{
+                      height: 36, borderRadius: 8, background: `${theme.accent1}15`,
+                      color: theme.accent1, fontWeight: 700, fontSize: 12, border: `1px solid ${theme.accent1}30`,
+                      cursor: 'pointer', transition: 'all 0.2s'
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.background = theme.accent1; e.currentTarget.style.color = '#fff'; e.currentTarget.style.transform = 'scale(1.05)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = `${theme.accent1}15`; e.currentTarget.style.color = theme.accent1; e.currentTarget.style.transform = 'scale(1)'; }}
+                  >
+                    {formatHours(h)}
+                  </button>
+                ))}
+            </div>
+            
+            {/* Поле ввода на всю ширину */}
+            <div style={{ width: '100%' }}>
+              <input
+                type="text"
+                placeholder="или введите чч:мм"
+                style={{
+                  width: '100%', padding: '8px 12px', borderRadius: 8, fontSize: 13,
+                  border: `1px solid ${theme.borderPrimary}`, background: theme.bgCard,
+                  color: theme.textPrimary, outline: 'none', textAlign: 'center',
+                  boxSizing: 'border-box'
+                }}
+                onFocus={e => e.currentTarget.style.borderColor = theme.accent1}
+                onBlur={e => {
+                  e.currentTarget.style.borderColor = theme.borderPrimary;
+                  const parsed = parseTimeInput(e.currentTarget.value);
+                  if (parsed !== null && parsed > 0 && parsed < assignment.hours) {
+                    handleSplit(parsed);
+                  }
+                }}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    const value = (e.target as HTMLInputElement).value;
+                    const parsed = parseTimeInput(value);
+                    if (parsed !== null && parsed > 0 && parsed < assignment.hours) {
+                      handleSplit(parsed);
+                    }
+                  }
+                }}
+              />
+              <div style={{ fontSize: 10, color: theme.textTertiary, marginTop: 4, textAlign: 'center' }}>
+                порог 15 минут
+              </div>
+            </div>
+            
+            <button
+              onClick={() => { setShowSplitMenu(false); setSplittingAssignmentId(null); }}
+              style={{ marginTop: 12, fontSize: 12, color: theme.textTertiary, background: 'none', border: 'none', cursor: 'pointer' }}
+              onMouseEnter={e => (e.currentTarget.style.color = theme.textPrimary)}
+              onMouseLeave={e => (e.currentTarget.style.color = theme.textTertiary)}
+            >
+              Отмена
+            </button>
+          </div>
+        );
+      })()}
 
       <style>{`
         .day-task-block:hover .day-task-btn { opacity: 1 !important; }
