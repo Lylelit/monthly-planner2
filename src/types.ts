@@ -4,6 +4,8 @@ export interface Task {
   totalHours: number;
   color: string;
   description?: string;
+  status?: 'new' | 'completed';
+  completedAt?: string;
 }
 
 export interface TaskAssignment {

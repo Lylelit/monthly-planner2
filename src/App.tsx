@@ -5,6 +5,7 @@ import { formatHours } from './utils/timeFormat';
 import TaskForm from './components/TaskForm';
 import TaskCard from './components/TaskCard';
 import DayColumn from './components/DayColumn';
+import CompletedTasksList from './components/CompletedTasksList';
 import AuthScreen, { Profile } from './components/AuthScreen';
 import { loadTasks, loadAssignments, saveTasks, saveAssignments, setCurrentProfile } from './services/storageService';
 import { useTheme } from './ThemeContext';
@@ -94,16 +95,17 @@ function App() {
     setAssignments((prev) => prev.filter((a) => a.taskId !== taskId));
   }, []);
 
-  const splitTask = useCallback((taskId: string) => {
-    const task = tasks.find((t) => t.id === taskId);
-    if (!task) return;
-    const totalAssigned = assignments.filter((a) => a.taskId === taskId).reduce((sum, a) => sum + a.hours, 0);
-    const remaining = task.totalHours - totalAssigned;
-    if (remaining <= 0.5) return;
-    const splitHours = Math.floor(remaining / 2);
-    const newTask: Task = { ...task, id: generateId(), title: `${task.title} (часть 2)`, totalHours: remaining - splitHours };
-    setTasks((prev) => [...prev.map((t) => t.id === taskId ? { ...t, totalHours: totalAssigned + splitHours } : t), newTask]);
-  }, [tasks, assignments]);
+  const completeTask = useCallback((taskId: string) => {
+    setTasks((prev) => prev.map(t => 
+      t.id === taskId ? { ...t, status: 'completed' as const, completedAt: new Date().toISOString() } : t
+    ));
+  }, []);
+
+  const returnToNew = useCallback((taskId: string, additionalHours: number) => {
+    setTasks((prev) => prev.map(t => 
+      t.id === taskId ? { ...t, status: 'new' as const, completedAt: undefined, totalHours: t.totalHours + additionalHours } : t
+    ));
+  }, []);
 
   const splitAssignment = useCallback((assignmentId: string, hoursToSplit: number) => {
     const assignment = assignments.find((a) => a.id === assignmentId);
@@ -373,23 +375,24 @@ function App() {
             <TaskForm onAddTask={addTask} />
           </div>
 
-          {tasks.length > 0 && (
+          {/* Новые задачи */}
+          {tasks.filter(t => t.status !== 'completed').length > 0 && (
             <div style={{
               background: theme.bgCard, borderRadius: 16, border: `1px solid ${theme.borderPrimary}`,
               padding: 16, boxShadow: theme.shadow
             }}>
               <h3 style={{ fontSize: 14, fontWeight: 600, color: theme.textPrimary, marginBottom: 12 }}>
-                Список ({tasks.length})
+                Новые задачи ({tasks.filter(t => t.status !== 'completed').length})
               </h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {tasks.map((task) => (
+                {tasks.filter(t => t.status !== 'completed').map((task) => (
                   <TaskCard
                     key={task.id}
                     task={task}
                     assignedHours={getTaskAssignedHours(task.id)}
                     totalAssignedHours={getTaskAssignedHours(task.id)}
                     onDragStart={setDraggedTaskId}
-                    onSplit={splitTask}
+                    onComplete={completeTask}
                     onDelete={deleteTask}
                   />
                 ))}
@@ -397,7 +400,15 @@ function App() {
             </div>
           )}
 
-          {tasks.length === 0 && (
+          {/* Выполненные задачи */}
+          <CompletedTasksList
+            tasks={tasks}
+            assignments={assignments}
+            days={weeks.flatMap(w => w.days)}
+            onReturnToNew={returnToNew}
+          />
+
+          {tasks.filter(t => t.status !== 'completed').length === 0 && tasks.filter(t => t.status === 'completed').length === 0 && (
             <div style={{
               background: theme.bgSecondary, borderRadius: 16, border: `1px solid ${theme.borderPrimary}`,
               padding: 24, textAlign: 'center'
