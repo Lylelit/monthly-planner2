@@ -132,6 +132,13 @@ function App() {
 
   const totalTaskHours = tasks.reduce((sum, t) => sum + t.totalHours, 0);
   const totalAssignedHours = assignments.reduce((sum, a) => sum + a.hours, 0);
+  
+  // Расчёт общего рабочего времени за месяц (8 часов × рабочие дни)
+  const workingDaysInMonth = weeks.reduce((count, week) => {
+    return count + week.days.filter(day => day.isWorkingDay).length;
+  }, 0);
+  const totalWorkingHours = workingDaysInMonth * HOURS_PER_DAY;
+  const remainingWorkingHours = totalWorkingHours - totalAssignedHours;
 
   const getTaskAssignedHours = (taskId: string) => {
     return assignments.filter((a) => a.taskId === taskId).reduce((sum, a) => sum + a.hours, 0);
@@ -245,6 +252,12 @@ function App() {
             <div style={{ textAlign: 'right' }}>
               <div style={{ fontSize: 12, color: theme.textTertiary }}>Назначено</div>
               <div style={{ fontSize: 14, fontWeight: 700, color: theme.accent1 }}>{totalAssignedHours}ч</div>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: 12, color: theme.textTertiary }}>Рабочее время</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: remainingWorkingHours > 0 ? theme.accent4 : theme.accent2 }}>
+                {remainingWorkingHours}ч / {totalWorkingHours}ч
+              </div>
             </div>
             <button
               onClick={() => {
@@ -419,27 +432,11 @@ interface WeekRowProps {
 }
 
 function WeekRow({ week, tasks, assignments, onDropTask, onRemoveAssignment, onSplitAssignment, onMoveAssignment }: WeekRowProps) {
-  const { theme } = useTheme();
-  const weekNum = getWeekNumber(week.days[0].date);
-
   return (
-    <div style={{
-      background: theme.bgCard, borderRadius: 16, border: `1px solid ${theme.borderPrimary}`,
-      boxShadow: theme.shadow, overflow: 'hidden'
-    }}>
-      <div style={{
-        padding: '8px 16px', background: theme.bgSecondary,
-        borderBottom: `1px solid ${theme.borderPrimary}`, display: 'flex', alignItems: 'center', gap: 8
-      }}>
-        <span style={{ fontSize: 12, fontWeight: 500, color: theme.textTertiary }}>Неделя {weekNum}</span>
-        <span style={{ fontSize: 12, color: theme.borderPrimary }}>•</span>
-        <span style={{ fontSize: 12, color: theme.textSecondary }}>
-          {week.days[0].date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })} — {week.days[4].date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
-        </span>
-      </div>
+    <div>
       <div style={{
         display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)',
-        gap: 8, padding: 8
+        gap: 12
       }}>
         {week.days.map((day) => (
           <DayColumn
@@ -456,14 +453,6 @@ function WeekRow({ week, tasks, assignments, onDropTask, onRemoveAssignment, onS
       </div>
     </div>
   );
-}
-
-function getWeekNumber(date: Date): number {
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-  const dayNum = d.getUTCDay() || 7;
-  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
 }
 
 export default App;

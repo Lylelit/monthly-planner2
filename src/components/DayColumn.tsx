@@ -101,7 +101,8 @@ export default function DayColumn({ day, tasks, assignments, onDropTask, onRemov
         background: !day.isWorkingDay ? theme.bgTertiary : isToday ? `${theme.accent1}08` : theme.bgCard,
         border: `1px solid ${!day.isWorkingDay ? theme.borderPrimary : isToday ? `${theme.accent1}40` : isDragOver ? theme.accent1 : theme.borderPrimary}`,
         opacity: !day.isWorkingDay ? 0.4 : 1,
-        boxShadow: isDragOver ? `0 0 0 2px ${theme.accent1}30` : 'none'
+        boxShadow: isDragOver ? `0 0 0 2px ${theme.accent1}30` : theme.shadow,
+        overflow: 'hidden'
       }}
     >
       {/* Header */}
