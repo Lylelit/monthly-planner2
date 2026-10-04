@@ -360,7 +360,7 @@ function App() {
         <aside style={{
           width: 288, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 16,
           position: 'sticky', top: 72, alignSelf: 'flex-start',
-          maxHeight: 'calc(100vh - 88px)', overflowY: 'auto'
+          maxHeight: 'calc(100vh - 88px)'
         }}>
           <div style={{
             background: theme.bgCard, borderRadius: 16, border: `1px solid ${theme.borderPrimary}`,

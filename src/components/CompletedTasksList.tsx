@@ -117,12 +117,12 @@ export default function CompletedTasksList({ tasks, assignments, days, onReturnT
         <div style={{
           position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          zIndex: 9999, padding: 20
+          zIndex: 2147483647, padding: 20
         }}>
           <div style={{
             background: theme.bgCard, borderRadius: 16, padding: 24,
             maxWidth: 500, width: '100%', maxHeight: '80vh', overflow: 'auto',
-            boxShadow: theme.shadowLg
+            boxShadow: theme.shadowLg, position: 'relative', zIndex: 2147483647
           }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
