@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Day, Task, TaskAssignment } from '../types';
 import { HOURS_PER_DAY, formatDate, getDayName } from '../utils/dateUtils';
+import { formatHours } from '../utils/timeFormat';
 import { useTheme } from '../ThemeContext';
 
 interface Props {
@@ -123,7 +124,7 @@ export default function DayColumn({ day, tasks, assignments, onDropTask, onRemov
               fontSize: 12, fontWeight: 600, padding: '2px 8px', borderRadius: 12,
               background: freeHoursBg, color: freeHoursColor
             }}>
-              {freeHours}ч
+              {formatHours(freeHours)}
             </div>
           )}
         </div>
@@ -174,7 +175,7 @@ export default function DayColumn({ day, tasks, assignments, onDropTask, onRemov
                     fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 6,
                     background: `${task.color}20`, color: task.color
                   }}>
-                    {assignment.hours}ч
+                    {formatHours(assignment.hours)}
                   </span>
                   <button
                     onClick={(e) => { e.stopPropagation(); onSplitAssignment(assignment.id); }}
@@ -234,23 +235,53 @@ export default function DayColumn({ day, tasks, assignments, onDropTask, onRemov
           border: `2px solid ${theme.accent1}50`, boxShadow: theme.shadowLg
         }}>
           <p style={{ fontSize: 12, color: theme.textSecondary, marginBottom: 4, fontWeight: 500 }}>Сколько часов назначить?</p>
-          <p style={{ fontSize: 10, color: theme.textTertiary, marginBottom: 12 }}>Свободно: {freeHours}ч из 8ч</p>
+          <p style={{ fontSize: 10, color: theme.textTertiary, marginBottom: 12 }}>Свободно: {formatHours(freeHours)} из 8ч</p>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center', maxWidth: 200 }}>
-            {[0.25, 0.5, 1, 2, 3, 4, 5, 6, 7, 8].filter(h => h <= freeHours).map((h) => (
+            {[0.25, 0.5, 1, 1.5, 2, 2.5, 3, 4].filter(h => h <= freeHours).map((h) => (
               <button
                 key={h}
                 onClick={() => handleQuickDrop(h)}
                 style={{
-                  width: 36, height: 36, borderRadius: 8, background: `${theme.accent1}15`,
-                  color: theme.accent1, fontWeight: 700, fontSize: h < 1 ? 11 : 14, border: `1px solid ${theme.accent1}30`,
+                  width: 48, height: 36, borderRadius: 8, background: `${theme.accent1}15`,
+                  color: theme.accent1, fontWeight: 700, fontSize: 12, border: `1px solid ${theme.accent1}30`,
                   cursor: 'pointer', transition: 'all 0.2s'
                 }}
-                onMouseEnter={e => { e.currentTarget.style.background = theme.accent1; e.currentTarget.style.color = '#fff'; e.currentTarget.style.transform = 'scale(1.1)'; }}
+                onMouseEnter={e => { e.currentTarget.style.background = theme.accent1; e.currentTarget.style.color = '#fff'; e.currentTarget.style.transform = 'scale(1.05)'; }}
                 onMouseLeave={e => { e.currentTarget.style.background = `${theme.accent1}15`; e.currentTarget.style.color = theme.accent1; e.currentTarget.style.transform = 'scale(1)'; }}
               >
-                {h < 1 ? `${h * 60}м` : h}
+                {formatHours(h)}
               </button>
             ))}
+            <div style={{ width: '100%', marginTop: 8 }}>
+              <input
+                type="text"
+                placeholder="чч:мм"
+                style={{
+                  width: '100%', padding: '8px 12px', borderRadius: 8, fontSize: 13,
+                  border: `1px solid ${theme.borderPrimary}`, background: theme.bgCard,
+                  color: theme.textPrimary, outline: 'none', textAlign: 'center',
+                  boxSizing: 'border-box'
+                }}
+                onFocus={e => e.currentTarget.style.borderColor = theme.accent1}
+                onBlur={e => e.currentTarget.style.borderColor = theme.borderPrimary}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    const value = (e.target as HTMLInputElement).value;
+                    const match = value.match(/^(\d+):(\d{1,2})$/);
+                    if (match) {
+                      const hours = parseInt(match[1], 10);
+                      const minutes = parseInt(match[2], 10);
+                      if (minutes < 60) {
+                        const totalHours = hours + minutes / 60;
+                        if (totalHours > 0 && totalHours <= freeHours) {
+                          handleQuickDrop(totalHours);
+                        }
+                      }
+                    }
+                  }
+                }}
+              />
+            </div>
           </div>
           <button
             onClick={() => { setShowDropMenu(false); setPendingTaskId(null); setPendingAssignmentId(null); }}

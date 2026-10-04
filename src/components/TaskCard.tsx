@@ -1,5 +1,6 @@
 import { Task } from '../types';
 import { useTheme } from '../ThemeContext';
+import { formatHours } from '../utils/timeFormat';
 
 interface Props {
   task: Task;
@@ -38,11 +39,11 @@ export default function TaskCard({ task, assignedHours, totalAssignedHours, onDr
           <h4 style={{ fontSize: 14, fontWeight: 500, color: theme.textPrimary, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{task.title}</h4>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
             <span style={{ fontSize: 12, color: theme.textTertiary }}>
-              {totalAssignedHours} / {task.totalHours} ч
+              {formatHours(totalAssignedHours)} / {formatHours(task.totalHours)}
             </span>
             {remaining > 0 && (
               <span style={{ fontSize: 12, color: theme.warning, fontWeight: 500 }}>
-                ({remaining} ч свободно)
+                ({formatHours(remaining)} свободно)
               </span>
             )}
             {remaining === 0 && (

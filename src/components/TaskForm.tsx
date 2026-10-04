@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Task } from '../types';
 import { generateId } from '../utils/dateUtils';
+import { formatHours } from '../utils/timeFormat';
 import { useTheme } from '../ThemeContext';
 
 const COLORS = [
@@ -83,27 +84,61 @@ export default function TaskForm({ onAddTask }: Props) {
         onBlur={e => (e.currentTarget.style.borderColor = theme.borderPrimary)}
         autoFocus
       />
-      <div style={{ display: 'flex', gap: 8 }}>
-        <div style={{ flex: 1 }}>
-          <label style={{ fontSize: 12, color: theme.textTertiary, marginBottom: 4, display: 'block' }}>Часы</label>
-          <input
-            type="number"
-            min="0.25"
-            max="80"
-            step="0.25"
-            placeholder="0"
-            value={hours}
-            onChange={(e) => setHours(e.target.value)}
-            style={{
-              width: '100%', padding: '8px 12px', borderRadius: 8, fontSize: 14,
-              border: `1px solid ${theme.borderPrimary}`, background: theme.bgCard,
-              color: theme.textPrimary, outline: 'none', transition: 'border-color 0.2s',
-              boxSizing: 'border-box'
-            }}
-            onFocus={e => (e.currentTarget.style.borderColor = theme.accent1)}
-            onBlur={e => (e.currentTarget.style.borderColor = theme.borderPrimary)}
-          />
+      <div>
+        <label style={{ fontSize: 12, color: theme.textTertiary, marginBottom: 8, display: 'block' }}>Время выполнения</label>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+          {[0.25, 0.5, 1, 1.5, 2, 2.5, 3, 4].map((h) => (
+            <button
+              key={h}
+              type="button"
+              onClick={() => setHours(h.toString())}
+              style={{
+                padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+                background: hours === h.toString() ? theme.accent1 : `${theme.accent1}15`,
+                color: hours === h.toString() ? '#fff' : theme.accent1,
+                border: `1px solid ${hours === h.toString() ? theme.accent1 : theme.accent1 + '30'}`,
+                cursor: 'pointer', transition: 'all 0.2s'
+              }}
+              onMouseEnter={e => {
+                if (hours !== h.toString()) {
+                  e.currentTarget.style.background = `${theme.accent1}30`;
+                }
+              }}
+              onMouseLeave={e => {
+                if (hours !== h.toString()) {
+                  e.currentTarget.style.background = `${theme.accent1}15`;
+                }
+              }}
+            >
+              {formatHours(h)}
+            </button>
+          ))}
         </div>
+        <input
+          type="text"
+          placeholder="Или введите чч:мм"
+          value={hours}
+          onChange={(e) => setHours(e.target.value)}
+          style={{
+            width: '100%', padding: '8px 12px', borderRadius: 8, fontSize: 14,
+            border: `1px solid ${theme.borderPrimary}`, background: theme.bgCard,
+            color: theme.textPrimary, outline: 'none', transition: 'border-color 0.2s',
+            boxSizing: 'border-box', textAlign: 'center'
+          }}
+          onFocus={e => (e.currentTarget.style.borderColor = theme.accent1)}
+          onBlur={e => {
+            e.currentTarget.style.borderColor = theme.borderPrimary;
+            // Парсим формат чч:мм
+            const match = hours.match(/^(\d+):(\d{1,2})$/);
+            if (match) {
+              const h = parseInt(match[1], 10);
+              const m = parseInt(match[2], 10);
+              if (m < 60) {
+                setHours((h + m / 60).toString());
+              }
+            }
+          }}
+        />
       </div>
       <div>
         <label style={{ fontSize: 12, color: theme.textTertiary, marginBottom: 4, display: 'block' }}>Цвет</label>

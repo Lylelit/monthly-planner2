@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { Task, TaskAssignment, Week } from './types';
 import { getMonthWeeks, getMonthName, generateId, HOURS_PER_DAY } from './utils/dateUtils';
+import { formatHours } from './utils/timeFormat';
 import TaskForm from './components/TaskForm';
 import TaskCard from './components/TaskCard';
 import DayColumn from './components/DayColumn';
@@ -318,16 +319,16 @@ function App() {
 
             <div style={{ textAlign: 'right' }}>
               <div style={{ fontSize: 12, color: theme.textTertiary }}>Задачи</div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: theme.textPrimary }}>{tasks.length} шт / {totalTaskHours}ч</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: theme.textPrimary }}>{tasks.length} шт / {formatHours(totalTaskHours)}</div>
             </div>
             <div style={{ textAlign: 'right' }}>
               <div style={{ fontSize: 12, color: theme.textTertiary }}>Назначено</div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: theme.accent1 }}>{totalAssignedHours}ч</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: theme.accent1 }}>{formatHours(totalAssignedHours)}</div>
             </div>
             <div style={{ textAlign: 'right' }}>
               <div style={{ fontSize: 12, color: theme.textTertiary }}>Рабочее время</div>
               <div style={{ fontSize: 14, fontWeight: 700, color: remainingWorkingHours > 0 ? theme.accent4 : theme.accent2 }}>
-                {remainingWorkingHours}ч / {totalWorkingHours}ч
+                {formatHours(remainingWorkingHours)} / {formatHours(totalWorkingHours)}
               </div>
             </div>
             <button
