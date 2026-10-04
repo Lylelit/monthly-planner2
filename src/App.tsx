@@ -4,29 +4,22 @@ import { getMonthWeeks, getMonthName, generateId, HOURS_PER_DAY } from './utils/
 import TaskForm from './components/TaskForm';
 import TaskCard from './components/TaskCard';
 import DayColumn from './components/DayColumn';
+import { loadTasks, loadAssignments, saveTasks, saveAssignments, getStorageMode } from './services/storageService';
+import { useTheme } from './ThemeContext';
 
 function App() {
+  const { theme, mode, toggleTheme } = useTheme();
   const now = new Date();
   const [currentYear, setCurrentYear] = useState(now.getFullYear());
   const [currentMonth, setCurrentMonth] = useState(now.getMonth());
   const [tasks, setTasks] = useState<Task[]>(() => {
-    try {
-      const saved = localStorage.getItem('planner-tasks');
-      if (saved) return JSON.parse(saved);
-    } catch { /* ignore */ }
-    // Demo tasks
     return [
-      { id: 'demo-1', title: 'Разработка API', totalHours: 12, color: '#6366f1' },
-      { id: 'demo-2', title: 'Дизайн интерфейса', totalHours: 8, color: '#ec4899' },
-      { id: 'demo-3', title: 'Тестирование', totalHours: 6, color: '#22c55e' },
+      { id: 'demo-1', title: 'Разработка API', totalHours: 12, color: '#3996D3' },
+      { id: 'demo-2', title: 'Дизайн интерфейса', totalHours: 8, color: '#EF7D00' },
+      { id: 'demo-3', title: 'Тестирование', totalHours: 6, color: '#89BC6B' },
     ];
   });
   const [assignments, setAssignments] = useState<TaskAssignment[]>(() => {
-    try {
-      const saved = localStorage.getItem('planner-assignments');
-      if (saved) return JSON.parse(saved);
-    } catch { /* ignore */ }
-    // Demo assignments
     const weeks = getMonthWeeks(now.getFullYear(), now.getMonth());
     if (weeks.length > 0 && weeks[0].days.length > 0) {
       return [
@@ -42,43 +35,44 @@ function App() {
   const [showHint, setShowHint] = useState(() => {
     return !localStorage.getItem('planner-hint-dismissed');
   });
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    localStorage.setItem('planner-tasks', JSON.stringify(tasks));
-  }, [tasks]);
+    async function loadData() {
+      try {
+        const [savedTasks, savedAssignments] = await Promise.all([
+          loadTasks(),
+          loadAssignments(),
+        ]);
+        if (savedTasks.length > 0) setTasks(savedTasks);
+        if (savedAssignments.length > 0) setAssignments(savedAssignments);
+      } catch (error) {
+        console.error('Error loading ', error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    loadData();
+  }, []);
 
-  useEffect(() => {
-    localStorage.setItem('planner-assignments', JSON.stringify(assignments));
-  }, [assignments]);
+  useEffect(() => { if (!isLoading) saveTasks(tasks); }, [tasks, isLoading]);
+  useEffect(() => { if (!isLoading) saveAssignments(assignments); }, [assignments, isLoading]);
 
   const weeks = useMemo(() => getMonthWeeks(currentYear, currentMonth), [currentYear, currentMonth]);
 
   const prevMonth = () => {
-    if (currentMonth === 0) {
-      setCurrentMonth(11);
-      setCurrentYear(currentYear - 1);
-    } else {
-      setCurrentMonth(currentMonth - 1);
-    }
+    if (currentMonth === 0) { setCurrentMonth(11); setCurrentYear(currentYear - 1); }
+    else setCurrentMonth(currentMonth - 1);
   };
 
   const nextMonth = () => {
-    if (currentMonth === 11) {
-      setCurrentMonth(0);
-      setCurrentYear(currentYear + 1);
-    } else {
-      setCurrentMonth(currentMonth + 1);
-    }
+    if (currentMonth === 11) { setCurrentMonth(0); setCurrentYear(currentYear + 1); }
+    else setCurrentMonth(currentMonth + 1);
   };
 
-  const goToToday = () => {
-    setCurrentYear(now.getFullYear());
-    setCurrentMonth(now.getMonth());
-  };
+  const goToToday = () => { setCurrentYear(now.getFullYear()); setCurrentMonth(now.getMonth()); };
 
-  const addTask = useCallback((task: Task) => {
-    setTasks((prev) => [...prev, task]);
-  }, []);
+  const addTask = useCallback((task: Task) => { setTasks((prev) => [...prev, task]); }, []);
 
   const deleteTask = useCallback((taskId: string) => {
     setTasks((prev) => prev.filter((t) => t.id !== taskId));
@@ -88,40 +82,22 @@ function App() {
   const splitTask = useCallback((taskId: string) => {
     const task = tasks.find((t) => t.id === taskId);
     if (!task) return;
-    const totalAssigned = assignments
-      .filter((a) => a.taskId === taskId)
-      .reduce((sum, a) => sum + a.hours, 0);
+    const totalAssigned = assignments.filter((a) => a.taskId === taskId).reduce((sum, a) => sum + a.hours, 0);
     const remaining = task.totalHours - totalAssigned;
     if (remaining <= 1) return;
-
     const splitHours = Math.floor(remaining / 2);
-    const newTask: Task = {
-      ...task,
-      id: generateId(),
-      title: `${task.title} (часть 2)`,
-      totalHours: remaining - splitHours,
-    };
-    // Update original task to have only the first part of remaining hours
-    setTasks((prev) => [
-      ...prev.map((t) => t.id === taskId ? { ...t, totalHours: totalAssigned + splitHours } : t),
-      newTask,
-    ]);
+    const newTask: Task = { ...task, id: generateId(), title: `${task.title} (часть 2)`, totalHours: remaining - splitHours };
+    setTasks((prev) => [...prev.map((t) => t.id === taskId ? { ...t, totalHours: totalAssigned + splitHours } : t), newTask]);
   }, [tasks, assignments]);
 
   const splitAssignment = useCallback((assignmentId: string) => {
     const assignment = assignments.find((a) => a.id === assignmentId);
     if (!assignment || assignment.hours <= 1) return;
-
     const half = Math.floor(assignment.hours / 2);
     const rest = assignment.hours - half;
-
     setAssignments((prev) => {
       const filtered = prev.filter((a) => a.id !== assignmentId);
-      return [
-        ...filtered,
-        { ...assignment, hours: half },
-        { ...assignment, id: generateId(), hours: rest, order: assignment.order + 0.5 },
-      ];
+      return [...filtered, { ...assignment, hours: half }, { ...assignment, id: generateId(), hours: rest, order: assignment.order + 0.5 }];
     });
   }, [assignments]);
 
@@ -133,115 +109,142 @@ function App() {
     setAssignments((prev) => {
       const assignment = prev.find(a => a.id === assignmentId);
       if (!assignment) return prev;
-      const maxOrder = prev
-        .filter((a) => a.dayId === newDayId)
-        .reduce((max, a) => Math.max(max, a.order), 0);
+      const maxOrder = prev.filter((a) => a.dayId === newDayId).reduce((max, a) => Math.max(max, a.order), 0);
       return prev.map(a => a.id === assignmentId ? { ...a, dayId: newDayId, order: maxOrder + 1 } : a);
     });
   }, []);
 
   const dropTask = useCallback((taskId: string, dayId: string, hours: number) => {
-    // Check if there's already an assignment for this task on this day
     const existing = assignments.find((a) => a.taskId === taskId && a.dayId === dayId);
     if (existing) {
-      // Add hours to existing assignment
-      const dayTotal = assignments
-        .filter((a) => a.dayId === dayId)
-        .reduce((sum, a) => sum + a.hours, 0);
+      const dayTotal = assignments.filter((a) => a.dayId === dayId).reduce((sum, a) => sum + a.hours, 0);
       if (dayTotal + hours <= HOURS_PER_DAY) {
-        setAssignments((prev) =>
-          prev.map((a) => a.id === existing.id ? { ...a, hours: a.hours + hours } : a)
-        );
+        setAssignments((prev) => prev.map((a) => a.id === existing.id ? { ...a, hours: a.hours + hours } : a));
       }
       return;
     }
-
-    // Check capacity
-    const dayTotal = assignments
-      .filter((a) => a.dayId === dayId)
-      .reduce((sum, a) => sum + a.hours, 0);
+    const dayTotal = assignments.filter((a) => a.dayId === dayId).reduce((sum, a) => sum + a.hours, 0);
     if (dayTotal + hours > HOURS_PER_DAY) return;
-
-    const maxOrder = assignments
-      .filter((a) => a.dayId === dayId)
-      .reduce((max, a) => Math.max(max, a.order), 0);
-
-    const newAssignment: TaskAssignment = {
-      id: generateId(),
-      taskId,
-      dayId,
-      hours,
-      order: maxOrder + 1,
-    };
+    const maxOrder = assignments.filter((a) => a.dayId === dayId).reduce((max, a) => Math.max(max, a.order), 0);
+    const newAssignment: TaskAssignment = { id: generateId(), taskId, dayId, hours, order: maxOrder + 1 };
     setAssignments((prev) => [...prev, newAssignment]);
   }, [assignments]);
 
-  // Calculate stats
   const totalTaskHours = tasks.reduce((sum, t) => sum + t.totalHours, 0);
   const totalAssignedHours = assignments.reduce((sum, a) => sum + a.hours, 0);
 
-  // Calculate per-task assigned hours
   const getTaskAssignedHours = (taskId: string) => {
-    return assignments
-      .filter((a) => a.taskId === taskId)
-      .reduce((sum, a) => sum + a.hours, 0);
+    return assignments.filter((a) => a.taskId === taskId).reduce((sum, a) => sum + a.hours, 0);
   };
 
+  if (isLoading) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: theme.bgPrimary }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{
+            width: 48, height: 48, border: `4px solid ${theme.borderPrimary}`,
+            borderTopColor: theme.accent1, borderRadius: '50%',
+            animation: 'spin 1s linear infinite', margin: '0 auto 16px'
+          }}></div>
+          <p style={{ color: theme.textSecondary, fontWeight: 500 }}>Загрузка данных...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50/30">
+    <div style={{ minHeight: '100vh', background: theme.bgPrimary, transition: 'background 0.3s ease' }}>
       {/* Header */}
-      <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-slate-200">
-        <div className="max-w-[1800px] mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-indigo-500 flex items-center justify-center">
-                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <header style={{
+        position: 'sticky', top: 0, zIndex: 30,
+        background: `${theme.bgCard}ee`, backdropFilter: 'blur(12px)',
+        borderBottom: `1px solid ${theme.borderPrimary}`
+      }}>
+        <div style={{ maxWidth: 1800, margin: '0 auto', padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{
+                width: 32, height: 32, borderRadius: 8,
+                background: theme.accent1, display: 'flex', alignItems: 'center', justifyContent: 'center'
+              }}>
+                <svg width="20" height="20" fill="none" stroke="white" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
               </div>
-              <h1 className="text-lg font-bold text-slate-800">Месячный планировщик</h1>
+              <h1 style={{ fontSize: 18, fontWeight: 700, color: theme.textPrimary, margin: 0 }}>Месячный планировщик</h1>
             </div>
           </div>
 
           {/* Month navigation */}
-          <div className="flex items-center gap-2">
-            <button
-              onClick={prevMonth}
-              className="p-2 rounded-lg hover:bg-slate-100 text-slate-600 transition-colors"
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button onClick={prevMonth} style={{
+              padding: 8, borderRadius: 8, border: 'none', cursor: 'pointer',
+              background: 'transparent', color: theme.textSecondary, transition: 'all 0.2s'
+            }}
+              onMouseEnter={e => (e.currentTarget.style.background = theme.bgHover)}
+              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
             </button>
-            <h2 className="text-base font-semibold text-slate-700 min-w-[160px] text-center">
+            <h2 style={{ fontSize: 16, fontWeight: 600, color: theme.textPrimary, minWidth: 160, textAlign: 'center', margin: 0 }}>
               {getMonthName(currentMonth)} {currentYear}
             </h2>
-            <button
-              onClick={nextMonth}
-              className="p-2 rounded-lg hover:bg-slate-100 text-slate-600 transition-colors"
+            <button onClick={nextMonth} style={{
+              padding: 8, borderRadius: 8, border: 'none', cursor: 'pointer',
+              background: 'transparent', color: theme.textSecondary, transition: 'all 0.2s'
+            }}
+              onMouseEnter={e => (e.currentTarget.style.background = theme.bgHover)}
+              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </button>
-            <button
-              onClick={goToToday}
-              className="ml-2 px-3 py-1.5 text-xs font-medium bg-indigo-50 text-indigo-600 
-                         rounded-lg hover:bg-indigo-100 transition-colors"
+            <button onClick={goToToday} style={{
+              marginLeft: 8, padding: '6px 12px', fontSize: 12, fontWeight: 500,
+              background: `${theme.accent1}15`, color: theme.accent1,
+              borderRadius: 8, border: 'none', cursor: 'pointer', transition: 'all 0.2s'
+            }}
+              onMouseEnter={e => (e.currentTarget.style.background = `${theme.accent1}25`)}
+              onMouseLeave={e => (e.currentTarget.style.background = `${theme.accent1}15`)}
             >
               Сегодня
             </button>
           </div>
 
-          {/* Stats */}
-          <div className="flex items-center gap-4">
-            <div className="text-right">
-              <div className="text-xs text-slate-500">Задачи</div>
-              <div className="text-sm font-bold text-slate-700">{tasks.length} шт / {totalTaskHours}ч</div>
+          {/* Stats & Theme toggle */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            {/* Theme toggle */}
+            <button onClick={toggleTheme} style={{
+              padding: 8, borderRadius: 8, border: `1px solid ${theme.borderPrimary}`,
+              background: theme.bgSecondary, color: theme.textSecondary,
+              cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: 4
+            }}
+              onMouseEnter={e => (e.currentTarget.style.background = theme.bgHover)}
+              onMouseLeave={e => (e.currentTarget.style.background = theme.bgSecondary)}
+            >
+              {mode === 'light' ? '🌙' : '☀️'}
+              <span style={{ fontSize: 12 }}>{mode === 'light' ? 'Тёмная' : 'Светлая'}</span>
+            </button>
+
+            <div style={{
+              padding: '4px 8px', borderRadius: 6, fontSize: 12, fontWeight: 500,
+              background: getStorageMode() === 'supabase' ? `${theme.success}15` : theme.bgSecondary,
+              color: getStorageMode() === 'supabase' ? theme.success : theme.textTertiary,
+              border: `1px solid ${getStorageMode() === 'supabase' ? `${theme.success}30` : theme.borderPrimary}`
+            }}>
+              {getStorageMode() === 'supabase' ? '☁️ Облако' : '💾 Локально'}
             </div>
-            <div className="text-right">
-              <div className="text-xs text-slate-500">Назначено</div>
-              <div className="text-sm font-bold text-indigo-600">{totalAssignedHours}ч</div>
+            
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: 12, color: theme.textTertiary }}>Задачи</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: theme.textPrimary }}>{tasks.length} шт / {totalTaskHours}ч</div>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: 12, color: theme.textTertiary }}>Назначено</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: theme.accent1 }}>{totalAssignedHours}ч</div>
             </div>
             <button
               onClick={() => {
@@ -252,10 +255,15 @@ function App() {
                   localStorage.removeItem('planner-assignments');
                 }
               }}
-              className="p-2 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors"
+              style={{
+                padding: 8, borderRadius: 8, border: 'none', cursor: 'pointer',
+                background: 'transparent', color: theme.textTertiary, transition: 'all 0.2s'
+              }}
+              onMouseEnter={e => (e.currentTarget.style.color = theme.danger)}
+              onMouseLeave={e => (e.currentTarget.style.color = theme.textTertiary)}
               title="Очистить все данные"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
               </svg>
             </button>
@@ -263,12 +271,19 @@ function App() {
         </div>
       </header>
 
-      <div className="max-w-[1800px] mx-auto flex gap-4 p-4">
-        {/* Sidebar - Tasks */}
-        <aside className="w-72 flex-shrink-0 space-y-4 sticky top-[72px] self-start max-h-[calc(100vh-88px)] overflow-y-auto">
-          <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
-            <h3 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
-              <svg className="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div style={{ maxWidth: 1800, margin: '0 auto', display: 'flex', gap: 16, padding: 16 }}>
+        {/* Sidebar */}
+        <aside style={{
+          width: 288, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 16,
+          position: 'sticky', top: 72, alignSelf: 'flex-start',
+          maxHeight: 'calc(100vh - 88px)', overflowY: 'auto'
+        }}>
+          <div style={{
+            background: theme.bgCard, borderRadius: 16, border: `1px solid ${theme.borderPrimary}`,
+            padding: 16, boxShadow: theme.shadow
+          }}>
+            <h3 style={{ fontSize: 14, fontWeight: 600, color: theme.textPrimary, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <svg width="16" height="16" fill="none" stroke={theme.accent1} viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
               </svg>
               Мои задачи
@@ -277,11 +292,14 @@ function App() {
           </div>
 
           {tasks.length > 0 && (
-            <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
-              <h3 className="text-sm font-semibold text-slate-700 mb-3">
+            <div style={{
+              background: theme.bgCard, borderRadius: 16, border: `1px solid ${theme.borderPrimary}`,
+              padding: 16, boxShadow: theme.shadow
+            }}>
+              <h3 style={{ fontSize: 14, fontWeight: 600, color: theme.textPrimary, marginBottom: 12 }}>
                 Список ({tasks.length})
               </h3>
-              <div className="space-y-2">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {tasks.map((task) => (
                   <TaskCard
                     key={task.id}
@@ -298,28 +316,36 @@ function App() {
           )}
 
           {tasks.length === 0 && (
-            <div className="bg-slate-50 rounded-xl border border-slate-200 p-6 text-center">
-              <div className="text-3xl mb-2">📋</div>
-              <p className="text-sm text-slate-500">Создайте первую задачу,<br/>чтобы начать планирование</p>
+            <div style={{
+              background: theme.bgSecondary, borderRadius: 16, border: `1px solid ${theme.borderPrimary}`,
+              padding: 24, textAlign: 'center'
+            }}>
+              <div style={{ fontSize: 32, marginBottom: 8 }}>📋</div>
+              <p style={{ fontSize: 14, color: theme.textTertiary }}>Создайте первую задачу,<br/>чтобы начать планирование</p>
             </div>
           )}
         </aside>
 
         {/* Main Board */}
-        <main className="flex-1 min-w-0">
-          {/* Hint */}
+        <main style={{ flex: 1, minWidth: 0 }}>
           {showHint && (
-            <div className="mb-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl border border-indigo-100 p-4 relative">
+            <div style={{
+              marginBottom: 16, background: `${theme.accent1}10`, borderRadius: 16,
+              border: `1px solid ${theme.accent1}30`, padding: 16, position: 'relative'
+            }}>
               <button
                 onClick={() => { setShowHint(false); localStorage.setItem('planner-hint-dismissed', '1'); }}
-                className="absolute top-2 right-2 p-1 rounded-md hover:bg-white/80 text-slate-400 hover:text-slate-600"
+                style={{
+                  position: 'absolute', top: 8, right: 8, padding: 4, borderRadius: 6,
+                  border: 'none', cursor: 'pointer', background: 'transparent', color: theme.textTertiary
+                }}
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
-              <h4 className="text-sm font-semibold text-indigo-800 mb-2">💡 Как пользоваться</h4>
-              <ul className="text-xs text-indigo-700 space-y-1">
+              <h4 style={{ fontSize: 14, fontWeight: 600, color: theme.accent1, marginBottom: 8 }}>💡 Как пользоваться</h4>
+              <ul style={{ fontSize: 12, color: theme.textSecondary, listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
                 <li>• <b>Создайте задачу</b> слева с оценкой в часах</li>
                 <li>• <b>Перетащите</b> задачу на любой день — появится выбор часов</li>
                 <li>• <b>Перетаскивайте блоки</b> между днями для перераспределения</li>
@@ -329,7 +355,7 @@ function App() {
             </div>
           )}
 
-          <div className="space-y-4">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             {weeks.map((week) => (
               <WeekRow
                 key={week.id}
@@ -345,8 +371,8 @@ function App() {
           </div>
 
           {weeks.length === 0 && (
-            <div className="text-center py-20 text-slate-400">
-              <div className="text-4xl mb-4">📅</div>
+            <div style={{ textAlign: 'center', padding: '80px 0', color: theme.textTertiary }}>
+              <div style={{ fontSize: 40, marginBottom: 16 }}>📅</div>
               <p>Нет рабочих дней в этом месяце</p>
             </div>
           )}
@@ -354,21 +380,23 @@ function App() {
       </div>
 
       {/* Footer */}
-      <footer className="max-w-[1800px] mx-auto px-4 py-6 mt-8 border-t border-slate-200">
-        <div className="flex items-center justify-between text-xs text-slate-400">
-          <div className="flex items-center gap-2">
+      <footer style={{
+        maxWidth: 1800, margin: '32px auto 0', padding: '24px 16px',
+        borderTop: `1px solid ${theme.borderPrimary}`
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, color: theme.textTertiary }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span>📅</span>
             <span>Месячный планировщик задач</span>
           </div>
-          <div className="flex items-center gap-4">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <span>Сделано с ❤️</span>
-            <a 
-              href="https://github.com/lylelit/monthly-planner2" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="hover:text-indigo-500 transition-colors flex items-center gap-1"
+            <a href="https://github.com/lylelit/monthly-planner2" target="_blank" rel="noopener noreferrer"
+              style={{ color: theme.textTertiary, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4, transition: 'color 0.2s' }}
+              onMouseEnter={e => (e.currentTarget.style.color = theme.accent1)}
+              onMouseLeave={e => (e.currentTarget.style.color = theme.textTertiary)}
             >
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+              <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
               </svg>
               GitHub
@@ -391,18 +419,28 @@ interface WeekRowProps {
 }
 
 function WeekRow({ week, tasks, assignments, onDropTask, onRemoveAssignment, onSplitAssignment, onMoveAssignment }: WeekRowProps) {
+  const { theme } = useTheme();
   const weekNum = getWeekNumber(week.days[0].date);
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-      <div className="px-4 py-2 bg-slate-50 border-b border-slate-100 flex items-center gap-2">
-        <span className="text-xs font-medium text-slate-400">Неделя {weekNum}</span>
-        <span className="text-xs text-slate-300">•</span>
-        <span className="text-xs text-slate-500">
+    <div style={{
+      background: theme.bgCard, borderRadius: 16, border: `1px solid ${theme.borderPrimary}`,
+      boxShadow: theme.shadow, overflow: 'hidden'
+    }}>
+      <div style={{
+        padding: '8px 16px', background: theme.bgSecondary,
+        borderBottom: `1px solid ${theme.borderPrimary}`, display: 'flex', alignItems: 'center', gap: 8
+      }}>
+        <span style={{ fontSize: 12, fontWeight: 500, color: theme.textTertiary }}>Неделя {weekNum}</span>
+        <span style={{ fontSize: 12, color: theme.borderPrimary }}>•</span>
+        <span style={{ fontSize: 12, color: theme.textSecondary }}>
           {week.days[0].date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })} — {week.days[4].date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}
         </span>
       </div>
-      <div className="grid grid-cols-5 gap-0 divide-x divide-slate-100">
+      <div style={{
+        display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)',
+        gap: 8, padding: 8
+      }}>
         {week.days.map((day) => (
           <DayColumn
             key={day.id}

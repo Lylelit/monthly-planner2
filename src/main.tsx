@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import "./index.css";
 import App from "./App.tsx";
+import { ThemeProvider } from "./ThemeContext";
 
 // Error boundary для отлова ошибок рендеринга
 class ErrorBoundary extends React.Component<
@@ -62,6 +63,8 @@ class ErrorBoundary extends React.Component<
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <ErrorBoundary>
-    <App />
+    <ThemeProvider>
+      <App />
+    </ThemeProvider>
   </ErrorBoundary>
 );
