@@ -21,10 +21,21 @@ function App() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [assignments, setAssignments] = useState<TaskAssignment[]>([]);
   const [, setDraggedTaskId] = useState<string | null>(null);
-  const [showHint, setShowHint] = useState(() => {
-    return !localStorage.getItem('planner-hint-dismissed');
-  });
   const [isLoading, setIsLoading] = useState(true);
+  const [showHint, setShowHint] = useState(() => {
+    const dismissed = localStorage.getItem('planner-hint-dismissed');
+    return !dismissed;
+  });
+
+  const toggleHint = () => {
+    const newState = !showHint;
+    setShowHint(newState);
+    if (!newState) {
+      localStorage.setItem('planner-hint-dismissed', 'true');
+    } else {
+      localStorage.removeItem('planner-hint-dismissed');
+    }
+  };
 
   // Проверка авторизации при старте
   useEffect(() => {
@@ -274,6 +285,23 @@ function App() {
 
           {/* Stats & Theme toggle */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            {/* Hint toggle */}
+            {!showHint && (
+              <button onClick={toggleHint} style={{
+                padding: 8, borderRadius: 8, border: `1px solid ${theme.borderPrimary}`,
+                background: theme.bgSecondary, color: theme.textSecondary,
+                cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center'
+              }}
+                onMouseEnter={e => (e.currentTarget.style.background = theme.bgHover)}
+                onMouseLeave={e => (e.currentTarget.style.background = theme.bgSecondary)}
+                title="Показать подсказку"
+              >
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                </svg>
+              </button>
+            )}
+
             {/* Theme toggle */}
             <button onClick={toggleTheme} style={{
               padding: 8, borderRadius: 8, border: `1px solid ${theme.borderPrimary}`,
@@ -427,7 +455,7 @@ function App() {
               border: `1px solid ${theme.accent1}30`, padding: 16, position: 'relative'
             }}>
               <button
-                onClick={() => { setShowHint(false); localStorage.setItem('planner-hint-dismissed', '1'); }}
+                onClick={toggleHint}
                 style={{
                   position: 'absolute', top: 8, right: 8, padding: 4, borderRadius: 6,
                   border: 'none', cursor: 'pointer', background: 'transparent', color: theme.textTertiary
