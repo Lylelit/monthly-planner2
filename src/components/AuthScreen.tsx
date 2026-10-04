@@ -31,7 +31,26 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
       }
       onAuthSuccess();
     } catch (err: any) {
-      setError(err.message || 'Произошла ошибка');
+      console.error('Auth error:', err);
+      
+      // Более понятные сообщения об ошибках
+      let errorMessage = 'Произошла ошибка';
+      
+      if (err.message?.includes('Failed to fetch')) {
+        errorMessage = 'Не удалось подключиться к серверу. Проверьте подключение к интернету.';
+      } else if (err.message?.includes('Invalid login credentials')) {
+        errorMessage = 'Неверный email или пароль';
+      } else if (err.message?.includes('Email not confirmed')) {
+        errorMessage = 'Email не подтверждён. Проверьте почту или обратитесь к администратору.';
+      } else if (err.message?.includes('User already registered')) {
+        errorMessage = 'Пользователь с таким email уже существует';
+      } else if (err.message?.includes('Password')) {
+        errorMessage = 'Пароль должен быть не менее 6 символов';
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
