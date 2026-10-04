@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Task, TaskAssignment, Day } from '../types';
 import { useTheme } from '../ThemeContext';
 import { formatHours, parseTimeInput } from '../utils/timeFormat';
@@ -112,7 +113,7 @@ export default function CompletedTasksList({ tasks, assignments, days, onReturnT
       </div>
 
       {/* Модальное окно с деталями задачи */}
-      {selectedTask && (
+      {selectedTask && createPortal(
         <div style={{
           position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -233,7 +234,8 @@ export default function CompletedTasksList({ tasks, assignments, days, onReturnT
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );
