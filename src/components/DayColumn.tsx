@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Day, Task, TaskAssignment } from '../types';
 import { HOURS_PER_DAY, formatDate, getDayName } from '../utils/dateUtils';
+import { useTheme } from '../ThemeContext';
 
 interface Props {
   day: Day;
@@ -13,6 +14,7 @@ interface Props {
 }
 
 export default function DayColumn({ day, tasks, assignments, onDropTask, onRemoveAssignment, onSplitAssignment, onMoveAssignment }: Props) {
+  const { theme } = useTheme();
   const [isDragOver, setIsDragOver] = useState(false);
   const [showDropMenu, setShowDropMenu] = useState(false);
   const [pendingTaskId, setPendingTaskId] = useState<string | null>(null);
@@ -33,7 +35,6 @@ export default function DayColumn({ day, tasks, assignments, onDropTask, onRemov
   };
 
   const handleDragLeave = (e: React.DragEvent) => {
-    // Only set false if we're actually leaving the column
     if (!e.currentTarget.contains(e.relatedTarget as Node)) {
       setIsDragOver(false);
     }
@@ -42,21 +43,18 @@ export default function DayColumn({ day, tasks, assignments, onDropTask, onRemov
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(false);
-    
     const taskId = e.dataTransfer.getData('taskId');
     const assignmentId = e.dataTransfer.getData('assignmentId');
     const sourceDayId = e.dataTransfer.getData('sourceDayId');
 
     if (!taskId) return;
 
-    // If dropping an existing assignment from another day
     if (assignmentId && sourceDayId && sourceDayId !== day.id) {
       const assignment = assignments.find(a => a.id === assignmentId);
       if (assignment && freeHours >= assignment.hours) {
         onMoveAssignment(assignmentId, day.id);
         return;
       }
-      // If not enough space, show menu
       if (freeHours > 0) {
         setPendingTaskId(taskId);
         setPendingAssignmentId(assignmentId);
@@ -65,10 +63,8 @@ export default function DayColumn({ day, tasks, assignments, onDropTask, onRemov
       return;
     }
 
-    // If dropping from sidebar (new assignment)
     const task = tasks.find((t) => t.id === taskId);
     if (!task) return;
-
     if (freeHours > 0) {
       setPendingTaskId(taskId);
       setPendingAssignmentId(null);
@@ -78,12 +74,8 @@ export default function DayColumn({ day, tasks, assignments, onDropTask, onRemov
 
   const handleQuickDrop = (hours: number) => {
     if (pendingTaskId) {
-      // If moving an existing assignment
       if (pendingAssignmentId) {
-        const existingAssignment = assignments.find(a => a.id === pendingAssignmentId);
-        if (existingAssignment) {
-          onRemoveAssignment(pendingAssignmentId);
-        }
+        onRemoveAssignment(pendingAssignmentId);
       }
       onDropTask(pendingTaskId, day.id, hours);
       setShowDropMenu(false);
@@ -92,60 +84,63 @@ export default function DayColumn({ day, tasks, assignments, onDropTask, onRemov
     }
   };
 
-  const getTaskForAssignment = (assignment: TaskAssignment) => {
-    return tasks.find((t) => t.id === assignment.taskId);
-  };
-
+  const getTaskForAssignment = (assignment: TaskAssignment) => tasks.find((t) => t.id === assignment.taskId);
   const isToday = new Date().toDateString() === day.date.toDateString();
+
+  const freeHoursColor = freeHours === 0 ? theme.danger : freeHours <= 2 ? theme.warning : theme.success;
+  const freeHoursBg = freeHours === 0 ? `${theme.danger}15` : freeHours <= 2 ? `${theme.warning}15` : `${theme.success}15`;
 
   return (
     <div
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
-      className={`relative flex flex-col transition-all duration-200 min-h-[180px]
-        ${!day.isWorkingDay ? 'opacity-30 bg-slate-50' : ''}
-        ${day.isWorkingDay && isToday ? 'bg-indigo-50/30 ring-1 ring-inset ring-indigo-200' : ''}
-        ${day.isWorkingDay && !isToday && isDragOver ? 'bg-indigo-50 shadow-inner ring-2 ring-inset ring-indigo-300' : ''}
-        ${day.isWorkingDay && !isToday && !isDragOver ? 'bg-white hover:bg-slate-50/50' : ''}
-      `}
+      style={{
+        position: 'relative', display: 'flex', flexDirection: 'column',
+        borderRadius: 12, minHeight: 180, transition: 'all 0.2s',
+        background: !day.isWorkingDay ? theme.bgTertiary : isToday ? `${theme.accent1}08` : theme.bgCard,
+        border: `1px solid ${!day.isWorkingDay ? theme.borderPrimary : isToday ? `${theme.accent1}40` : isDragOver ? theme.accent1 : theme.borderPrimary}`,
+        opacity: !day.isWorkingDay ? 0.4 : 1,
+        boxShadow: isDragOver ? `0 0 0 2px ${theme.accent1}30` : 'none'
+      }}
     >
       {/* Header */}
-      <div className="px-3 py-2 border-b border-slate-100/80">
-        <div className="flex items-center justify-between">
+      <div style={{
+        padding: '10px 12px', borderBottom: `1px solid ${theme.borderPrimary}`,
+        background: isToday ? `${theme.accent1}08` : 'transparent',
+        borderRadius: '12px 12px 0 0'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{getDayName(day.dayOfWeek)}</span>
-            <span className={`text-sm font-bold ml-1 ${isToday ? 'text-indigo-600' : 'text-slate-700'}`}>
+            <span style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1, color: theme.textTertiary }}>{getDayName(day.dayOfWeek)}</span>
+            <span style={{ fontSize: 14, fontWeight: 700, marginLeft: 6, color: isToday ? theme.accent1 : theme.textPrimary }}>
               {formatDate(day.date)}
             </span>
           </div>
           {day.isWorkingDay && (
-            <div className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-              freeHours === 0 ? 'bg-red-50 text-red-600' : 
-              freeHours <= 2 ? 'bg-amber-50 text-amber-600' : 
-              'bg-emerald-50 text-emerald-600'
-            }`}>
+            <div style={{
+              fontSize: 12, fontWeight: 600, padding: '2px 8px', borderRadius: 12,
+              background: freeHoursBg, color: freeHoursColor
+            }}>
               {freeHours}ч
             </div>
           )}
         </div>
-        {/* Hours bar */}
         {day.isWorkingDay && (
-          <div className="mt-2 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+          <div style={{ marginTop: 8, height: 4, background: theme.bgTertiary, borderRadius: 2, overflow: 'hidden' }}>
             <div
-              className={`h-full rounded-full transition-all duration-500 ${
-                fillPercent >= 100 ? 'bg-gradient-to-r from-red-400 to-red-500' : 
-                fillPercent >= 75 ? 'bg-gradient-to-r from-amber-400 to-amber-500' : 
-                'bg-gradient-to-r from-emerald-400 to-emerald-500'
-              }`}
-              style={{ width: `${Math.min(fillPercent, 100)}%` }}
+              style={{
+                height: '100%', borderRadius: 2, transition: 'width 0.5s',
+                width: `${Math.min(fillPercent, 100)}%`,
+                background: fillPercent >= 100 ? theme.danger : fillPercent >= 75 ? theme.warning : theme.success
+              }}
             />
           </div>
         )}
       </div>
 
       {/* Task blocks */}
-      <div className="flex-1 p-2 space-y-1.5">
+      <div style={{ flex: 1, padding: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
         {day.isWorkingDay && dayAssignments.map((assignment) => {
           const task = getTaskForAssignment(assignment);
           if (!task) return null;
@@ -159,37 +154,56 @@ export default function DayColumn({ day, tasks, assignments, onDropTask, onRemov
                 e.dataTransfer.setData('sourceDayId', day.id);
                 e.dataTransfer.effectAllowed = 'move';
               }}
-              className="group relative rounded-lg px-2.5 py-2 cursor-grab active:cursor-grabbing
-                         transition-all hover:shadow-md hover:scale-[1.02]"
+              className="day-task-block"
               style={{
-                backgroundColor: `${task.color}12`,
+                position: 'relative', borderRadius: 8, padding: '8px 10px',
+                cursor: 'grab', transition: 'all 0.2s',
+                background: `${task.color}15`,
                 borderLeft: `3px solid ${task.color}`,
               }}
+              onMouseEnter={e => { e.currentTarget.style.boxShadow = theme.shadowLg; e.currentTarget.style.transform = 'scale(1.02)'; }}
+              onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'scale(1)'; }}
             >
-              <div className="flex items-center justify-between gap-1">
-                <span className="text-xs font-semibold truncate" style={{ color: task.color }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4 }}>
+                <span style={{ fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: task.color }}>
                   {task.title}
                 </span>
-                <div className="flex items-center gap-0.5 flex-shrink-0">
-                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md"
-                        style={{ backgroundColor: `${task.color}20`, color: task.color }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
+                  <span style={{
+                    fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 6,
+                    background: `${task.color}20`, color: task.color
+                  }}>
                     {assignment.hours}ч
                   </span>
                   <button
                     onClick={(e) => { e.stopPropagation(); onSplitAssignment(assignment.id); }}
-                    className="opacity-0 group-hover:opacity-100 p-1 rounded-md hover:bg-white/90 text-slate-400 hover:text-indigo-500 transition-all"
-                    title="Разделить на части"
+                    className="day-task-btn"
+                    style={{
+                      padding: 4, borderRadius: 4, border: 'none', cursor: 'pointer',
+                      background: 'transparent', color: theme.textTertiary, transition: 'all 0.2s',
+                      opacity: 0
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.background = theme.bgCard; e.currentTarget.style.color = theme.accent1; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = theme.textTertiary; }}
+                    title="Разделить"
                   >
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
                     </svg>
                   </button>
                   <button
                     onClick={(e) => { e.stopPropagation(); onRemoveAssignment(assignment.id); }}
-                    className="opacity-0 group-hover:opacity-100 p-1 rounded-md hover:bg-white/90 text-slate-400 hover:text-red-500 transition-all"
-                    title="Убрать из дня"
+                    className="day-task-btn"
+                    style={{
+                      padding: 4, borderRadius: 4, border: 'none', cursor: 'pointer',
+                      background: 'transparent', color: theme.textTertiary, transition: 'all 0.2s',
+                      opacity: 0
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.background = theme.bgCard; e.currentTarget.style.color = theme.danger; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = theme.textTertiary; }}
+                    title="Убрать"
                   >
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>
                   </button>
@@ -199,51 +213,58 @@ export default function DayColumn({ day, tasks, assignments, onDropTask, onRemov
           );
         })}
 
-        {/* Drop zone indicator */}
         {day.isWorkingDay && isDragOver && !showDropMenu && (
-          <div className="border-2 border-dashed border-indigo-300 rounded-lg p-4 
-                          bg-indigo-50/50 flex items-center justify-center animate-pulse">
-            <span className="text-xs text-indigo-500 font-medium">Отпустите здесь</span>
+          <div style={{
+            border: `2px dashed ${theme.accent1}50`, borderRadius: 8, padding: 16,
+            background: `${theme.accent1}08`, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            animation: 'pulse 2s infinite'
+          }}>
+            <span style={{ fontSize: 12, color: theme.accent1, fontWeight: 500 }}>Отпустите здесь</span>
           </div>
         )}
       </div>
 
       {/* Drop menu */}
       {showDropMenu && pendingTaskId && (
-        <div className="absolute inset-0 bg-white/95 backdrop-blur-sm rounded-xl z-10 flex flex-col items-center justify-center p-4 shadow-xl border-2 border-indigo-300">
-          <p className="text-xs text-slate-600 mb-1 font-medium">Сколько часов назначить?</p>
-          <p className="text-[10px] text-slate-400 mb-3">Свободно: {freeHours}ч из 8ч</p>
-          <div className="flex flex-wrap gap-1.5 justify-center max-w-[200px]">
+        <div style={{
+          position: 'absolute', inset: 0, background: `${theme.bgCard}f5`, backdropFilter: 'blur(4px)',
+          borderRadius: 12, zIndex: 10, display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center', padding: 16,
+          border: `2px solid ${theme.accent1}50`, boxShadow: theme.shadowLg
+        }}>
+          <p style={{ fontSize: 12, color: theme.textSecondary, marginBottom: 4, fontWeight: 500 }}>Сколько часов назначить?</p>
+          <p style={{ fontSize: 10, color: theme.textTertiary, marginBottom: 12 }}>Свободно: {freeHours}ч из 8ч</p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center', maxWidth: 200 }}>
             {Array.from({ length: Math.min(Math.floor(freeHours), 8) }, (_, i) => i + 1).map((h) => (
               <button
                 key={h}
                 onClick={() => handleQuickDrop(h)}
-                className="w-9 h-9 rounded-lg bg-indigo-50 text-indigo-700 font-bold text-sm
-                           hover:bg-indigo-500 hover:text-white transition-all hover:scale-110
-                           border border-indigo-100"
+                style={{
+                  width: 36, height: 36, borderRadius: 8, background: `${theme.accent1}15`,
+                  color: theme.accent1, fontWeight: 700, fontSize: 14, border: `1px solid ${theme.accent1}30`,
+                  cursor: 'pointer', transition: 'all 0.2s'
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = theme.accent1; e.currentTarget.style.color = '#fff'; e.currentTarget.style.transform = 'scale(1.1)'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = `${theme.accent1}15`; e.currentTarget.style.color = theme.accent1; e.currentTarget.style.transform = 'scale(1)'; }}
               >
                 {h}
               </button>
             ))}
-            {freeHours >= 0.5 && freeHours % 1 !== 0 && (
-              <button
-                onClick={() => handleQuickDrop(Math.floor(freeHours * 2) / 2)}
-                className="w-9 h-9 rounded-lg bg-indigo-50 text-indigo-700 font-bold text-[10px]
-                           hover:bg-indigo-500 hover:text-white transition-all hover:scale-110
-                           border border-indigo-100"
-              >
-                {freeHours}
-              </button>
-            )}
           </div>
           <button
             onClick={() => { setShowDropMenu(false); setPendingTaskId(null); setPendingAssignmentId(null); }}
-            className="mt-3 text-xs text-slate-400 hover:text-slate-600 transition-colors"
+            style={{ marginTop: 12, fontSize: 12, color: theme.textTertiary, background: 'none', border: 'none', cursor: 'pointer' }}
+            onMouseEnter={e => (e.currentTarget.style.color = theme.textPrimary)}
+            onMouseLeave={e => (e.currentTarget.style.color = theme.textTertiary)}
           >
             Отмена
           </button>
         </div>
       )}
+
+      <style>{`
+        .day-task-block:hover .day-task-btn { opacity: 1 !important; }
+      `}</style>
     </div>
   );
 }
