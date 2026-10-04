@@ -4,6 +4,15 @@ import { supabase } from '../lib/supabase';
 // Режим хранения: 'local' или 'supabase'
 const STORAGE_MODE: 'local' | 'supabase' = 'local';
 
+// Текущий пользователь и группа (будут устанавливаться из App)
+let currentUserId: string | null = null;
+let currentGroupId: string | null = null;
+
+export function setCurrentUser(userId: string | null, groupId: string | null = null) {
+  currentUserId = userId;
+  currentGroupId = groupId;
+}
+
 // ===== LOCAL STORAGE =====
 const LOCAL_TASKS_KEY = 'planner-tasks';
 const LOCAL_ASSIGNMENTS_KEY = 'planner-assignments';
@@ -36,10 +45,20 @@ function saveLocalAssignments(assignments: TaskAssignment[]): void {
 
 // ===== SUPABASE =====
 async function loadSupabaseTasks(): Promise<Task[]> {
-  const { data, error } = await supabase
-    .from('tasks')
-    .select('*')
-    .order('created_at', { ascending: true });
+  if (!currentUserId) {
+    console.error('Cannot load tasks: no user logged in');
+    return [];
+  }
+
+  let query = supabase.from('tasks').select('*');
+  
+  if (currentGroupId) {
+    query = query.eq('group_id', currentGroupId);
+  } else {
+    query = query.eq('user_id', currentUserId).is('group_id', null);
+  }
+  
+  const { data, error } = await query.order('created_at', { ascending: true });
   
   if (error) {
     console.error('Error loading tasks:', error);
@@ -56,9 +75,21 @@ async function loadSupabaseTasks(): Promise<Task[]> {
 }
 
 async function loadSupabaseAssignments(): Promise<TaskAssignment[]> {
+  if (!currentUserId) {
+    console.error('Cannot load assignments: no user logged in');
+    return [];
+  }
+
+  // Сначала получаем все задачи пользователя/группы
+  const tasks = await loadSupabaseTasks();
+  const taskIds = tasks.map(t => t.id);
+  
+  if (taskIds.length === 0) return [];
+
   const { data, error } = await supabase
     .from('assignments')
     .select('*')
+    .in('task_id', taskIds)
     .order('sort_order', { ascending: true });
   
   if (error) {
@@ -76,12 +107,23 @@ async function loadSupabaseAssignments(): Promise<TaskAssignment[]> {
 }
 
 async function saveSupabaseTasks(tasks: Task[]): Promise<void> {
-  // Удаляем все старые задачи и вставляем новые
-  await supabase.from('tasks').delete().neq('id', '');
+  if (!currentUserId) {
+    console.error('Cannot save tasks: no user logged in');
+    return;
+  }
+
+  // Удаляем все старые задачи текущего пользователя/группы
+  if (currentGroupId) {
+    await supabase.from('tasks').delete().eq('group_id', currentGroupId);
+  } else {
+    await supabase.from('tasks').delete().eq('user_id', currentUserId).is('group_id', null);
+  }
   
   if (tasks.length > 0) {
     const rows = tasks.map(t => ({
       id: t.id,
+      user_id: currentUserId,
+      group_id: currentGroupId,
       title: t.title,
       total_hours: t.totalHours,
       color: t.color,
@@ -96,8 +138,19 @@ async function saveSupabaseTasks(tasks: Task[]): Promise<void> {
 }
 
 async function saveSupabaseAssignments(assignments: TaskAssignment[]): Promise<void> {
-  // Удаляем все старые назначения и вставляем новые
-  await supabase.from('assignments').delete().neq('id', '');
+  if (!currentUserId) {
+    console.error('Cannot save assignments: no user logged in');
+    return;
+  }
+
+  // Получаем все задачи пользователя/группы
+  const tasks = await loadSupabaseTasks();
+  const taskIds = tasks.map(t => t.id);
+  
+  if (taskIds.length > 0) {
+    // Удаляем старые назначения для этих задач
+    await supabase.from('assignments').delete().in('task_id', taskIds);
+  }
   
   if (assignments.length > 0) {
     const rows = assignments.map(a => ({

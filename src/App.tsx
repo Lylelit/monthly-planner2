@@ -4,11 +4,18 @@ import { getMonthWeeks, getMonthName, generateId, HOURS_PER_DAY } from './utils/
 import TaskForm from './components/TaskForm';
 import TaskCard from './components/TaskCard';
 import DayColumn from './components/DayColumn';
-import { loadTasks, loadAssignments, saveTasks, saveAssignments, getStorageMode } from './services/storageService';
+import AuthScreen from './components/AuthScreen';
+import GroupsManager from './components/GroupsManager';
+import { loadTasks, loadAssignments, saveTasks, saveAssignments, getStorageMode, setCurrentUser as setStorageUser } from './services/storageService';
+import { getCurrentUser, signOut, UserProfile, onAuthStateChange } from './services/authService';
 import { useTheme } from './ThemeContext';
 
 function App() {
   const { theme, mode, toggleTheme } = useTheme();
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [showGroups, setShowGroups] = useState(false);
+  
   const now = new Date();
   const [currentYear, setCurrentYear] = useState(now.getFullYear());
   const [currentMonth, setCurrentMonth] = useState(now.getMonth());
@@ -37,6 +44,39 @@ function App() {
   });
   const [isLoading, setIsLoading] = useState(true);
 
+  // Проверка авторизации
+  useEffect(() => {
+    async function checkAuth() {
+      try {
+        const user = await getCurrentUser();
+        setCurrentUser(user);
+        if (user) {
+          setStorageUser(user.id, null);
+        }
+      } catch (error) {
+        console.error('Auth error:', error);
+      } finally {
+        setAuthLoading(false);
+      }
+    }
+    
+    checkAuth();
+
+    // Подписка на изменения авторизации
+    const { data: { subscription } } = onAuthStateChange((user) => {
+      setCurrentUser(user);
+      if (user) {
+        setStorageUser(user.id, null);
+      } else {
+        setStorageUser(null, null);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
   useEffect(() => {
     async function loadData() {
       try {
@@ -52,8 +92,13 @@ function App() {
         setIsLoading(false);
       }
     }
-    loadData();
-  }, []);
+    
+    if (currentUser) {
+      loadData();
+    } else {
+      setIsLoading(false);
+    }
+  }, [currentUser]);
 
   useEffect(() => { if (!isLoading) saveTasks(tasks); }, [tasks, isLoading]);
   useEffect(() => { if (!isLoading) saveAssignments(assignments); }, [assignments, isLoading]);
@@ -144,6 +189,36 @@ function App() {
     return assignments.filter((a) => a.taskId === taskId).reduce((sum, a) => sum + a.hours, 0);
   };
 
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      setCurrentUser(null);
+      setTasks([]);
+      setAssignments([]);
+    } catch (error) {
+      console.error('Sign out error:', error);
+    }
+  };
+
+  if (authLoading) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: theme.bgPrimary }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{
+            width: 48, height: 48, border: `4px solid ${theme.borderPrimary}`,
+            borderTopColor: theme.accent1, borderRadius: '50%',
+            animation: 'spin 1s linear infinite', margin: '0 auto 16px'
+          }}></div>
+          <p style={{ color: theme.textSecondary, fontWeight: 500 }}>Загрузка...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!currentUser) {
+    return <AuthScreen onAuthSuccess={() => {}} />;
+  }
+
   if (isLoading) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: theme.bgPrimary }}>
@@ -223,6 +298,24 @@ function App() {
 
           {/* Stats & Theme toggle */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            {/* Groups button */}
+            <button onClick={() => setShowGroups(!showGroups)} style={{
+              padding: 8, borderRadius: 8, border: `1px solid ${theme.borderPrimary}`,
+              background: showGroups ? theme.accent1 : theme.bgSecondary, 
+              color: showGroups ? 'white' : theme.textSecondary,
+              cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: 4
+            }}
+              onMouseEnter={e => {
+                if (!showGroups) e.currentTarget.style.background = theme.bgHover;
+              }}
+              onMouseLeave={e => {
+                if (!showGroups) e.currentTarget.style.background = theme.bgSecondary;
+              }}
+            >
+              👥
+              <span style={{ fontSize: 12 }}>Группы</span>
+            </button>
+
             {/* Theme toggle */}
             <button onClick={toggleTheme} style={{
               padding: 8, borderRadius: 8, border: `1px solid ${theme.borderPrimary}`,
@@ -235,6 +328,37 @@ function App() {
               {mode === 'light' ? '🌙' : '☀️'}
               <span style={{ fontSize: 12 }}>{mode === 'light' ? 'Тёмная' : 'Светлая'}</span>
             </button>
+
+            {/* User info & logout */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: 12, color: theme.textTertiary }}>Пользователь</div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: theme.textPrimary }}>
+                  {currentUser.display_name || currentUser.username || currentUser.email}
+                </div>
+              </div>
+              <button onClick={handleSignOut} style={{
+                padding: 8, borderRadius: 8, border: `1px solid ${theme.borderPrimary}`,
+                background: theme.bgSecondary, color: theme.textSecondary,
+                cursor: 'pointer', transition: 'all 0.2s'
+              }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.background = theme.danger;
+                  e.currentTarget.style.color = 'white';
+                  e.currentTarget.style.borderColor = theme.danger;
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.background = theme.bgSecondary;
+                  e.currentTarget.style.color = theme.textSecondary;
+                  e.currentTarget.style.borderColor = theme.borderPrimary;
+                }}
+                title="Выйти"
+              >
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+              </button>
+            </div>
 
             <div style={{
               padding: '4px 8px', borderRadius: 6, fontSize: 12, fontWeight: 500,
@@ -283,6 +407,10 @@ function App() {
           </div>
         </div>
       </header>
+
+      <div style={{ maxWidth: 1800, margin: '0 auto', padding: '16px 16px 0' }}>
+        {showGroups && <GroupsManager />}
+      </div>
 
       <div style={{ maxWidth: 1800, margin: '0 auto', display: 'flex', gap: 16, padding: 16 }}>
         {/* Sidebar */}
