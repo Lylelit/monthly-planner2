@@ -236,13 +236,21 @@ export default function DayColumn({ day, tasks, assignments, onDropTask, onRemov
         }}>
           <p style={{ fontSize: 12, color: theme.textSecondary, marginBottom: 4, fontWeight: 500 }}>Сколько часов назначить?</p>
           <p style={{ fontSize: 10, color: theme.textTertiary, marginBottom: 12 }}>Свободно: {formatHours(freeHours)} из 8ч</p>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center', maxWidth: 200 }}>
+          
+          {/* Кнопки выбора времени - 4 в ряд */}
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(4, 1fr)', 
+            gap: 6, 
+            marginBottom: 12,
+            width: '100%'
+          }}>
             {[0.25, 0.5, 1, 1.5, 2, 2.5, 3, 4].filter(h => h <= freeHours).map((h) => (
               <button
                 key={h}
                 onClick={() => handleQuickDrop(h)}
                 style={{
-                  width: 48, height: 36, borderRadius: 8, background: `${theme.accent1}15`,
+                  height: 36, borderRadius: 8, background: `${theme.accent1}15`,
                   color: theme.accent1, fontWeight: 700, fontSize: 12, border: `1px solid ${theme.accent1}30`,
                   cursor: 'pointer', transition: 'all 0.2s'
                 }}
@@ -252,37 +260,39 @@ export default function DayColumn({ day, tasks, assignments, onDropTask, onRemov
                 {formatHours(h)}
               </button>
             ))}
-            <div style={{ width: '100%', marginTop: 8 }}>
-              <input
-                type="text"
-                placeholder="или введите чч:мм"
-                style={{
-                  width: '100%', padding: '8px 12px', borderRadius: 8, fontSize: 13,
-                  border: `1px solid ${theme.borderPrimary}`, background: theme.bgCard,
-                  color: theme.textPrimary, outline: 'none', textAlign: 'center',
-                  boxSizing: 'border-box'
-                }}
-                onFocus={e => e.currentTarget.style.borderColor = theme.accent1}
-                onBlur={e => {
-                  e.currentTarget.style.borderColor = theme.borderPrimary;
-                  const parsed = parseTimeInput(e.currentTarget.value);
+          </div>
+          
+          {/* Поле ввода на всю ширину */}
+          <div style={{ width: '100%' }}>
+            <input
+              type="text"
+              placeholder="или введите чч:мм"
+              style={{
+                width: '100%', padding: '8px 12px', borderRadius: 8, fontSize: 13,
+                border: `1px solid ${theme.borderPrimary}`, background: theme.bgCard,
+                color: theme.textPrimary, outline: 'none', textAlign: 'center',
+                boxSizing: 'border-box'
+              }}
+              onFocus={e => e.currentTarget.style.borderColor = theme.accent1}
+              onBlur={e => {
+                e.currentTarget.style.borderColor = theme.borderPrimary;
+                const parsed = parseTimeInput(e.currentTarget.value);
+                if (parsed !== null && parsed > 0 && parsed <= freeHours) {
+                  handleQuickDrop(parsed);
+                }
+              }}
+              onKeyDown={e => {
+                if (e.key === 'Enter') {
+                  const value = (e.target as HTMLInputElement).value;
+                  const parsed = parseTimeInput(value);
                   if (parsed !== null && parsed > 0 && parsed <= freeHours) {
                     handleQuickDrop(parsed);
                   }
-                }}
-                onKeyDown={e => {
-                  if (e.key === 'Enter') {
-                    const value = (e.target as HTMLInputElement).value;
-                    const parsed = parseTimeInput(value);
-                    if (parsed !== null && parsed > 0 && parsed <= freeHours) {
-                      handleQuickDrop(parsed);
-                    }
-                  }
-                }}
-              />
-              <div style={{ fontSize: 10, color: theme.textTertiary, marginTop: 4, textAlign: 'center' }}>
-                порог 15 минут
-              </div>
+                }
+              }}
+            />
+            <div style={{ fontSize: 10, color: theme.textTertiary, marginTop: 4, textAlign: 'center' }}>
+              порог 15 минут
             </div>
           </div>
           <button
