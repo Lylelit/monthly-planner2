@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Day, Task, TaskAssignment } from '../types';
 import { HOURS_PER_DAY, formatDate, getDayName } from '../utils/dateUtils';
-import { formatHours } from '../utils/timeFormat';
+import { formatHours, parseTimeInput } from '../utils/timeFormat';
 import { useTheme } from '../ThemeContext';
 
 interface Props {
@@ -267,16 +267,9 @@ export default function DayColumn({ day, tasks, assignments, onDropTask, onRemov
                 onKeyDown={e => {
                   if (e.key === 'Enter') {
                     const value = (e.target as HTMLInputElement).value;
-                    const match = value.match(/^(\d+):(\d{1,2})$/);
-                    if (match) {
-                      const hours = parseInt(match[1], 10);
-                      const minutes = parseInt(match[2], 10);
-                      if (minutes < 60) {
-                        const totalHours = hours + minutes / 60;
-                        if (totalHours > 0 && totalHours <= freeHours) {
-                          handleQuickDrop(totalHours);
-                        }
-                      }
+                    const parsed = parseTimeInput(value);
+                    if (parsed !== null && parsed > 0 && parsed <= freeHours) {
+                      handleQuickDrop(parsed);
                     }
                   }
                 }}

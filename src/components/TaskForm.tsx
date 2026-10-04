@@ -1,25 +1,20 @@
 import React, { useState } from 'react';
 import { Task } from '../types';
 import { generateId } from '../utils/dateUtils';
-import { formatHours } from '../utils/timeFormat';
+import { formatHours, parseTimeInput } from '../utils/timeFormat';
 import { useTheme } from '../ThemeContext';
 
 const COLORS = [
-  '#3996D3', // голубой
-  '#EF7D00', // оранжевый
-  '#89BC6B', // зелёный
-  '#E74C3C', // красный
-  '#9B59B6', // фиолетовый
-  '#F1C40F', // жёлтый
-  '#1ABC9C', // бирюзовый
-  '#E91E63', // розовый
-  '#34495E', // тёмно-синий
-  '#F6A758', // персиковый
-  '#2ECC71', // изумрудный
-  '#D35400', // тёмно-оранжевый
-  '#8E44AD', // пурпурный
-  '#16A085', // тёмно-бирюзовый
-  '#C0392B', // бордовый
+  '#6366f1', // индиго
+  '#8b5cf6', // фиолетовый
+  '#ec4899', // розовый
+  '#f43f5e', // красный
+  '#f97316', // оранжевый
+  '#eab308', // жёлтый
+  '#22c55e', // зелёный
+  '#14b8a6', // бирюзовый
+  '#06b6d4', // циан
+  '#3b82f6', // синий
 ];
 
 interface Props {
@@ -36,7 +31,11 @@ export default function TaskForm({ onAddTask }: Props) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !hours) return;
-    const task: Task = { id: generateId(), title: title.trim(), totalHours: parseFloat(hours), color };
+    
+    const parsedHours = parseTimeInput(hours);
+    if (parsedHours === null || parsedHours <= 0) return;
+    
+    const task: Task = { id: generateId(), title: title.trim(), totalHours: parsedHours, color };
     onAddTask(task);
     setTitle('');
     setHours('');
@@ -128,14 +127,10 @@ export default function TaskForm({ onAddTask }: Props) {
           onFocus={e => (e.currentTarget.style.borderColor = theme.accent1)}
           onBlur={e => {
             e.currentTarget.style.borderColor = theme.borderPrimary;
-            // Парсим формат чч:мм
-            const match = hours.match(/^(\d+):(\d{1,2})$/);
-            if (match) {
-              const h = parseInt(match[1], 10);
-              const m = parseInt(match[2], 10);
-              if (m < 60) {
-                setHours((h + m / 60).toString());
-              }
+            // Парсим любой формат времени
+            const parsed = parseTimeInput(hours);
+            if (parsed !== null && parsed > 0) {
+              setHours(parsed.toString());
             }
           }}
         />

@@ -18,17 +18,50 @@ export function formatHours(hours: number): string {
 }
 
 /**
- * Парсит строку времени в формате "чч:мм" в десятичные часы
- * Например: "1:30" -> 1.5, "0:45" -> 0.75, "2:00" -> 2
+ * Парсит строку времени в десятичные часы
+ * Поддерживает форматы: "1:30", "01:30", "1,5", "1.5", "2,45", "2.45"
+ * Возвращает null если формат невалидный
  */
-export function parseTimeString(timeStr: string): number | null {
-  const match = timeStr.match(/^(\d+):(\d{1,2})$/);
-  if (!match) return null;
+export function parseTimeInput(timeStr: string): number | null {
+  const trimmed = timeStr.trim();
   
-  const hours = parseInt(match[1], 10);
-  const minutes = parseInt(match[2], 10);
+  // Формат с двоеточием: "1:30", "01:30", "2:45"
+  const colonMatch = trimmed.match(/^(\d+):(\d{1,2})$/);
+  if (colonMatch) {
+    const hours = parseInt(colonMatch[1], 10);
+    const minutes = parseInt(colonMatch[2], 10);
+    if (minutes >= 60) return null;
+    return hours + minutes / 60;
+  }
   
-  if (minutes >= 60) return null;
+  // Формат с запятой или точкой: "1,5", "2.45", "3,15"
+  const decimalMatch = trimmed.match(/^(\d+)[,.](\d+)$/);
+  if (decimalMatch) {
+    const hours = parseInt(decimalMatch[1], 10);
+    const decimalPart = decimalMatch[2];
+    
+    // Если это минуты (2 цифры) или десятичные часы
+    if (decimalPart.length <= 2) {
+      const decimalValue = parseFloat(`0.${decimalPart}`);
+      // Если значение <= 0.59, считаем это десятичными часами
+      // Если > 0.59, считаем это минутами
+      if (decimalValue <= 0.59) {
+        return hours + decimalValue;
+      } else {
+        const minutes = parseInt(decimalPart, 10);
+        if (minutes >= 60) return null;
+        return hours + minutes / 60;
+      }
+    }
+    
+    return null;
+  }
   
-  return hours + minutes / 60;
+  // Просто число часов: "2", "3"
+  const simpleMatch = trimmed.match(/^(\d+)$/);
+  if (simpleMatch) {
+    return parseInt(simpleMatch[1], 10);
+  }
+  
+  return null;
 }
