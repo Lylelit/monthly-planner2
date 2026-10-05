@@ -132,10 +132,18 @@ function App() {
   }, []);
 
   const returnToNew = useCallback((taskId: string, additionalHours: number) => {
+    // Вычисляем сколько уже потрачено на эту задачу
+    const alreadyAssigned = assignments
+      .filter(a => a.taskId === taskId)
+      .reduce((sum, a) => sum + a.hours, 0);
+    
+    // Новое общее время = уже потрачено + время на доработку
+    const newTotalHours = alreadyAssigned + additionalHours;
+    
     setTasks((prev) => prev.map(t => 
-      t.id === taskId ? { ...t, status: 'new' as const, completedAt: undefined, totalHours: additionalHours } : t
+      t.id === taskId ? { ...t, status: 'new' as const, completedAt: undefined, totalHours: newTotalHours } : t
     ));
-  }, []);
+  }, [assignments]);
 
   const editTask = useCallback((updatedTask: Task) => {
     setTasks((prev) => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
