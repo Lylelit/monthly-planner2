@@ -21,6 +21,7 @@ export interface Day {
   date: Date;
   dayOfWeek: number; // 1-5 (Mon-Fri)
   isWorkingDay: boolean;
+  status?: 'working' | 'vacation' | 'holiday';
 }
 
 export interface Week {

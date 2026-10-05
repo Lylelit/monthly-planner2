@@ -21,6 +21,7 @@ function App() {
   const [currentMonth, setCurrentMonth] = useState(now.getMonth());
   const [tasks, setTasks] = useState<Task[]>([]);
   const [assignments, setAssignments] = useState<TaskAssignment[]>([]);
+  const [dayStatuses, setDayStatuses] = useState<Record<string, 'vacation' | 'holiday'>>({});
   const [, setDraggedTaskId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showHint, setShowHint] = useState(() => {
@@ -72,18 +73,23 @@ function App() {
         ]);
         if (savedTasks.length > 0) setTasks(savedTasks);
         if (savedAssignments.length > 0) setAssignments(savedAssignments);
+
+        // Загружаем статусы дней
+        const savedDayStatuses = localStorage.getItem(`planner-day-statuses-${currentUser.login}`);
+        if (savedDayStatuses) {
+          setDayStatuses(JSON.parse(savedDayStatuses));
+        }
       } catch (error) {
         console.error('Error loading ', error);
       } finally {
         setIsLoading(false);
       }
     }
-
+    
     if (authChecked) {
       loadData();
     }
   }, [currentUser, authChecked]);
-
   useEffect(() => { if (!isLoading && currentUser) saveTasks(tasks); }, [tasks, isLoading, currentUser]);
   useEffect(() => { if (!isLoading && currentUser) saveAssignments(assignments); }, [assignments, isLoading, currentUser]);
 
@@ -124,6 +130,19 @@ function App() {
     setTasks((prev) => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
     setEditingTask(null);
   }, []);
+
+  const setDayStatus = useCallback((dayId: string, status: 'vacation' | 'holiday' | 'working') => {
+    setDayStatuses((prev) => {
+      const updated = { ...prev };
+      if (status === 'working') {
+        delete updated[dayId];
+      } else {
+        updated[dayId] = status;
+      }
+      localStorage.setItem(`planner-day-statuses-${currentUser?.login}`, JSON.stringify(updated));
+      return updated;
+    });
+  }, [currentUser]);
 
   const splitAssignment = useCallback((assignmentId: string, hoursToSplit: number) => {
     const assignment = assignments.find((a) => a.id === assignmentId);
@@ -167,9 +186,11 @@ function App() {
   const totalTaskHours = tasks.reduce((sum, t) => sum + t.totalHours, 0);
   const totalAssignedHours = assignments.reduce((sum, a) => sum + a.hours, 0);
 
-  // Расчёт общего рабочего времени за месяц (8 часов × рабочие дни)
+  // Расчёт общего рабочего времени за месяц (8 часов × рабочие дни, исключая отпуск/праздники)
   const workingDaysInMonth = weeks.reduce((count, week) => {
-    return count + week.days.filter(day => day.isWorkingDay).length;
+    return count + week.days.filter(day => 
+      day.isWorkingDay && !dayStatuses[day.id]
+    ).length;
   }, 0);
   const totalWorkingHours = workingDaysInMonth * HOURS_PER_DAY;
   const remainingWorkingHours = totalWorkingHours - totalAssignedHours;
@@ -521,10 +542,12 @@ function App() {
                 week={week}
                 tasks={tasks}
                 assignments={assignments}
+                dayStatuses={dayStatuses}
                 onDropTask={dropTask}
                 onRemoveAssignment={removeAssignment}
                 onSplitAssignment={splitAssignment}
                 onMoveAssignment={moveAssignment}
+                onSetDayStatus={setDayStatus}
               />
             ))}
           </div>
@@ -584,13 +607,15 @@ interface WeekRowProps {
   week: Week;
   tasks: Task[];
   assignments: TaskAssignment[];
+  dayStatuses: Record<string, 'vacation' | 'holiday'>;
   onDropTask: (taskId: string, dayId: string, hours: number) => void;
   onRemoveAssignment: (assignmentId: string) => void;
   onSplitAssignment: (assignmentId: string, hoursToSplit: number) => void;
   onMoveAssignment: (assignmentId: string, newDayId: string) => void;
+  onSetDayStatus: (dayId: string, status: 'vacation' | 'holiday' | 'working') => void;
 }
 
-function WeekRow({ week, tasks, assignments, onDropTask, onRemoveAssignment, onSplitAssignment, onMoveAssignment }: WeekRowProps) {
+function WeekRow({ week, tasks, assignments, dayStatuses, onDropTask, onRemoveAssignment, onSplitAssignment, onMoveAssignment, onSetDayStatus }: WeekRowProps) {
   return (
     <div>
       <div style={{
@@ -600,13 +625,14 @@ function WeekRow({ week, tasks, assignments, onDropTask, onRemoveAssignment, onS
         {week.days.map((day) => (
           <DayColumn
             key={day.id}
-            day={day}
+            day={{ ...day, status: dayStatuses[day.id] || 'working' }}
             tasks={tasks}
             assignments={assignments}
             onDropTask={onDropTask}
             onRemoveAssignment={onRemoveAssignment}
             onSplitAssignment={onSplitAssignment}
             onMoveAssignment={onMoveAssignment}
+            onSetDayStatus={onSetDayStatus}
           />
         ))}
       </div>
