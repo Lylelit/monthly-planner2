@@ -8,10 +8,11 @@ interface Props {
   totalAssignedHours: number;
   onDragStart: (taskId: string) => void;
   onComplete: (taskId: string) => void;
+  onEdit: (task: Task) => void;
   onDelete: (taskId: string) => void;
 }
 
-export default function TaskCard({ task, assignedHours, totalAssignedHours, onDragStart, onComplete, onDelete }: Props) {
+export default function TaskCard({ task, assignedHours, totalAssignedHours, onDragStart, onComplete, onEdit, onDelete }: Props) {
   const { theme } = useTheme();
   const remaining = task.totalHours - totalAssignedHours;
   const progress = totalAssignedHours / task.totalHours;
@@ -64,6 +65,20 @@ export default function TaskCard({ task, assignedHours, totalAssignedHours, onDr
         <div style={{ display: 'flex', gap: 2, opacity: 0, transition: 'opacity 0.2s' }}
           className="task-card-actions"
         >
+          <button
+            onClick={() => onEdit(task)}
+            style={{
+              padding: 4, borderRadius: 6, border: 'none', cursor: 'pointer',
+              background: 'transparent', color: theme.textTertiary, transition: 'all 0.2s'
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = theme.accent1; e.currentTarget.style.color = '#fff'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = theme.textTertiary; }}
+            title="Редактировать задачу"
+          >
+            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+          </button>
           <button
             onClick={() => onComplete(task.id)}
             style={{

@@ -6,6 +6,7 @@ import TaskForm from './components/TaskForm';
 import TaskCard from './components/TaskCard';
 import DayColumn from './components/DayColumn';
 import CompletedTasksList from './components/CompletedTasksList';
+import EditTaskModal from './components/EditTaskModal';
 import AuthScreen, { Profile } from './components/AuthScreen';
 import { loadTasks, loadAssignments, saveTasks, saveAssignments, setCurrentProfile } from './services/storageService';
 import { useTheme } from './ThemeContext';
@@ -26,6 +27,7 @@ function App() {
     const dismissed = localStorage.getItem('planner-hint-dismissed');
     return !dismissed;
   });
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
 
   const toggleHint = () => {
     const newState = !showHint;
@@ -116,6 +118,11 @@ function App() {
     setTasks((prev) => prev.map(t => 
       t.id === taskId ? { ...t, status: 'new' as const, completedAt: undefined, totalHours: t.totalHours + additionalHours } : t
     ));
+  }, []);
+
+  const editTask = useCallback((updatedTask: Task) => {
+    setTasks((prev) => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
+    setEditingTask(null);
   }, []);
 
   const splitAssignment = useCallback((assignmentId: string, hoursToSplit: number) => {
@@ -444,6 +451,7 @@ function App() {
                     totalAssignedHours={getTaskAssignedHours(task.id)}
                     onDragStart={setDraggedTaskId}
                     onComplete={completeTask}
+                    onEdit={setEditingTask}
                     onDelete={deleteTask}
                   />
                 ))}
@@ -531,6 +539,15 @@ function App() {
           )}
         </main>
       </div>
+
+      {/* Edit Task Modal */}
+      {editingTask && (
+        <EditTaskModal
+          task={editingTask}
+          onSave={editTask}
+          onCancel={() => setEditingTask(null)}
+        />
+      )}
 
       {/* Footer */}
       <footer style={{
