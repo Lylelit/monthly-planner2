@@ -242,6 +242,13 @@ export default function DayColumn({ day, tasks, assignments, onDropTask, onRemov
         {day.isWorkingDay && dayAssignments.map((assignment) => {
           const task = getTaskForAssignment(assignment);
           if (!task) return null;
+          
+          // Определяем цвета в зависимости от статуса задачи
+          const isCompleted = task.status === 'completed';
+          const taskColor = isCompleted ? theme.textTertiary : task.color;
+          const taskBg = isCompleted ? `${theme.textTertiary}15` : `${task.color}15`;
+          const taskBadgeBg = isCompleted ? `${theme.textTertiary}20` : `${task.color}20`;
+          
           return (
             <div
               key={assignment.id}
@@ -290,20 +297,21 @@ export default function DayColumn({ day, tasks, assignments, onDropTask, onRemov
               style={{
                 position: 'relative', borderRadius: 8, padding: '8px 10px',
                 cursor: 'grab', transition: 'all 0.2s',
-                background: `${task.color}15`,
-                borderLeft: `3px solid ${task.color}`,
+                background: taskBg,
+                borderLeft: `3px solid ${taskColor}`,
+                opacity: isCompleted ? 0.6 : 1,
               }}
               onMouseEnter={e => { e.currentTarget.style.boxShadow = theme.shadowLg; e.currentTarget.style.transform = 'scale(1.02)'; }}
               onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'scale(1)'; }}
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4 }}>
-                <span style={{ fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: task.color }}>
+                <span style={{ fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: taskColor }}>
                   {task.title}
                 </span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
                   <span style={{
                     fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 6,
-                    background: `${task.color}20`, color: task.color
+                    background: taskBadgeBg, color: taskColor
                   }}>
                     {formatHours(assignment.hours)}
                   </span>
