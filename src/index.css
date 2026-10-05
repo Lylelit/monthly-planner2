@@ -46,6 +46,29 @@
   user-select: none;
 }
 
+/* Remove opacity during drag */
+[draggable="true"]:active {
+  opacity: 1 !important;
+}
+
+/* Drag placeholder indicator */
+.drag-placeholder {
+  height: 4px;
+  background: #3996D3;
+  border-radius: 2px;
+  margin: 4px 0;
+  transition: all 0.2s ease;
+  animation: pulse 1s infinite;
+}
+
+.drag-placeholder-above {
+  margin-top: 8px;
+}
+
+.drag-placeholder-below {
+  margin-bottom: 8px;
+}
+
 /* Better focus styles */
 button:focus-visible,
 input:focus-visible {

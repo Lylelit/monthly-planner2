@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Task } from '../types';
 import { useTheme } from '../ThemeContext';
 import { formatHours } from '../utils/timeFormat';
@@ -16,28 +17,56 @@ interface Props {
 
 export default function TaskCard({ task, assignedHours, totalAssignedHours, onDragStart, onComplete, onEdit, onDelete, onReorder, index }: Props) {
   const { theme } = useTheme();
+  const [dragOverPosition, setDragOverPosition] = useState<'above' | 'below' | null>(null);
   const remaining = task.totalHours - totalAssignedHours;
   const progress = totalAssignedHours / task.totalHours;
 
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    
+    // Определяем позицию курсора относительно карточки
+    const rect = e.currentTarget.getBoundingClientRect();
+    const midY = rect.top + rect.height / 2;
+    
+    if (e.clientY < midY) {
+      setDragOverPosition('above');
+    } else {
+      setDragOverPosition('below');
+    }
+  };
+
+  const handleDragLeave = () => {
+    setDragOverPosition(null);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOverPosition(null);
+    
+    const draggedId = e.dataTransfer.getData('taskId');
+    if (draggedId && draggedId !== task.id && onReorder) {
+      onReorder(draggedId, task.id);
+    }
+  };
+
   return (
-    <div
-      draggable
-      onDragStart={(e) => {
-        e.dataTransfer.setData('taskId', task.id);
-        e.dataTransfer.effectAllowed = 'move';
-        onDragStart(task.id);
-      }}
-      onDragOver={(e) => {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
-      }}
-      onDrop={(e) => {
-        e.preventDefault();
-        const draggedId = e.dataTransfer.getData('taskId');
-        if (draggedId && draggedId !== task.id && onReorder) {
-          onReorder(draggedId, task.id);
-        }
-      }}
+    <div style={{ position: 'relative' }}>
+      {/* Placeholder above */}
+      {dragOverPosition === 'above' && (
+        <div className="drag-placeholder drag-placeholder-above" />
+      )}
+      
+      <div
+        draggable
+        onDragStart={(e) => {
+          e.dataTransfer.setData('taskId', task.id);
+          e.dataTransfer.effectAllowed = 'move';
+          onDragStart(task.id);
+        }}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
       style={{
         position: 'relative', borderRadius: 10, padding: 12,
         cursor: 'grab', border: `1px solid ${theme.borderPrimary}`,
@@ -131,6 +160,12 @@ export default function TaskCard({ task, assignedHours, totalAssignedHours, onDr
       <style>{`
         div:hover > .task-card-actions { opacity: 1 !important; }
       `}</style>
+      </div>
+      
+      {/* Placeholder below */}
+      {dragOverPosition === 'below' && (
+        <div className="drag-placeholder drag-placeholder-below" />
+      )}
     </div>
   );
 }

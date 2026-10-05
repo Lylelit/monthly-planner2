@@ -260,11 +260,13 @@ export default function DayColumn({ day, tasks, assignments, onDropTask, onRemov
               onDrop={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
+                
                 const draggedAssignmentId = e.dataTransfer.getData('assignmentId');
                 const draggedTaskId = e.dataTransfer.getData('taskId');
                 const sourceDayId = e.dataTransfer.getData('sourceDayId');
                 
-                // Если перетаскиваем из другого дня - игнорируем (это обрабатывается родителем)
+                // Если перетаскиваем из другого дня - не обрабатываем здесь
+                // Это позволит событию всплыть до родителя для показа меню выбора времени
                 if (sourceDayId && sourceDayId !== day.id) {
                   return;
                 }
