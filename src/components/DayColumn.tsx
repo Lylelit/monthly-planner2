@@ -197,7 +197,7 @@ export default function DayColumn({ day, tasks, assignments, onDropTask, onRemov
               onMouseEnter={e => { if (isNonWorking) e.currentTarget.style.background = theme.bgHover; }}
               onMouseLeave={e => { if (isNonWorking) e.currentTarget.style.background = 'transparent'; }}
             >
-              ✓ Рабочий день
+              Рабочий день
             </button>
             <button
               onClick={() => { onSetDayStatus(day.id, 'vacation'); setShowDayMenu(false); }}
@@ -212,7 +212,7 @@ export default function DayColumn({ day, tasks, assignments, onDropTask, onRemov
               onMouseEnter={e => { if (!isVacation) e.currentTarget.style.background = theme.bgHover; }}
               onMouseLeave={e => { if (!isVacation) e.currentTarget.style.background = 'transparent'; }}
             >
-              🏖 Отпуск
+              Отпуск
             </button>
             <button
               onClick={() => { onSetDayStatus(day.id, 'holiday'); setShowDayMenu(false); }}
@@ -227,7 +227,7 @@ export default function DayColumn({ day, tasks, assignments, onDropTask, onRemov
               onMouseEnter={e => { if (!isHoliday) e.currentTarget.style.background = theme.bgHover; }}
               onMouseLeave={e => { if (!isHoliday) e.currentTarget.style.background = 'transparent'; }}
             >
-              🎉 Выходной
+              Выходной
             </button>
           </div>
         )}
