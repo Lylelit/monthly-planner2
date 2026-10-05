@@ -178,6 +178,38 @@ function App() {
     });
   }, []);
 
+  const reorderAssignment = useCallback((sourceId: string, targetId: string) => {
+    setAssignments((prev) => {
+      const source = prev.find(a => a.id === sourceId);
+      const target = prev.find(a => a.id === targetId);
+      if (!source || !target) return prev;
+      
+      // Меняем order местами
+      return prev.map(a => {
+        if (a.id === sourceId) return { ...a, order: target.order };
+        if (a.id === targetId) return { ...a, order: source.order };
+        return a;
+      });
+    });
+  }, []);
+
+  const mergeAssignments = useCallback((sourceId: string, targetId: string) => {
+    setAssignments((prev) => {
+      const source = prev.find(a => a.id === sourceId);
+      const target = prev.find(a => a.id === targetId);
+      if (!source || !target) return prev;
+      
+      // Проверяем что это одна и та же задача
+      if (source.taskId !== target.taskId) return prev;
+      
+      // Объединяем время и удаляем source
+      const newHours = source.hours + target.hours;
+      return prev
+        .filter(a => a.id !== sourceId)
+        .map(a => a.id === targetId ? { ...a, hours: newHours } : a);
+    });
+  }, []);
+
   const dropTask = useCallback((taskId: string, dayId: string, hours: number) => {
     const existing = assignments.find((a) => a.taskId === taskId && a.dayId === dayId);
     if (existing) {
@@ -582,7 +614,7 @@ function App() {
                 Новые задачи ({tasks.filter(t => t.status !== 'completed').length})
               </h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {tasks.filter(t => t.status !== 'completed').map((task) => (
+                {tasks.filter(t => t.status !== 'completed').map((task, index) => (
                   <TaskCard
                     key={task.id}
                     task={task}
@@ -592,6 +624,17 @@ function App() {
                     onComplete={completeTask}
                     onEdit={setEditingTask}
                     onDelete={deleteTask}
+                    onReorder={(draggedId, targetId) => {
+                      const newTasks = [...tasks];
+                      const draggedIndex = newTasks.findIndex(t => t.id === draggedId);
+                      const targetIndex = newTasks.findIndex(t => t.id === targetId);
+                      if (draggedIndex !== -1 && targetIndex !== -1) {
+                        const [draggedTask] = newTasks.splice(draggedIndex, 1);
+                        newTasks.splice(targetIndex, 0, draggedTask);
+                        setTasks(newTasks);
+                      }
+                    }}
+                    index={index}
                   />
                 ))}
               </div>
@@ -666,6 +709,8 @@ function App() {
                 onSplitAssignment={splitAssignment}
                 onMoveAssignment={moveAssignment}
                 onSetDayStatus={setDayStatus}
+                onReorderAssignment={reorderAssignment}
+                onMergeAssignments={mergeAssignments}
                 isMobile={isMobile}
               />
             ))}
@@ -732,10 +777,12 @@ interface WeekRowProps {
   onSplitAssignment: (assignmentId: string, hoursToSplit: number) => void;
   onMoveAssignment: (assignmentId: string, newDayId: string) => void;
   onSetDayStatus: (dayId: string, status: 'vacation' | 'holiday' | 'working') => void;
+  onReorderAssignment?: (sourceId: string, targetId: string) => void;
+  onMergeAssignments?: (sourceId: string, targetId: string) => void;
   isMobile: boolean;
 }
 
-function WeekRow({ week, tasks, assignments, dayStatuses, onDropTask, onRemoveAssignment, onSplitAssignment, onMoveAssignment, onSetDayStatus, isMobile }: WeekRowProps & { isMobile: boolean }) {
+function WeekRow({ week, tasks, assignments, dayStatuses, onDropTask, onRemoveAssignment, onSplitAssignment, onMoveAssignment, onSetDayStatus, onReorderAssignment, onMergeAssignments, isMobile }: WeekRowProps & { isMobile: boolean }) {
   return (
     <div>
       <div style={{
@@ -755,6 +802,8 @@ function WeekRow({ week, tasks, assignments, dayStatuses, onDropTask, onRemoveAs
             onSplitAssignment={onSplitAssignment}
             onMoveAssignment={onMoveAssignment}
             onSetDayStatus={onSetDayStatus}
+            onReorderAssignment={onReorderAssignment}
+            onMergeAssignments={onMergeAssignments}
             isMobile={isMobile}
           />
         ))}

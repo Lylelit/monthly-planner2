@@ -13,10 +13,12 @@ interface Props {
   onSplitAssignment: (assignmentId: string, hoursToSplit: number) => void;
   onMoveAssignment: (assignmentId: string, newDayId: string) => void;
   onSetDayStatus: (dayId: string, status: 'vacation' | 'holiday' | 'working') => void;
+  onReorderAssignment?: (sourceId: string, targetId: string) => void;
+  onMergeAssignments?: (sourceId: string, targetId: string) => void;
   isMobile?: boolean;
 }
 
-export default function DayColumn({ day, tasks, assignments, onDropTask, onRemoveAssignment, onSplitAssignment, onMoveAssignment, onSetDayStatus, isMobile = false }: Props) {
+export default function DayColumn({ day, tasks, assignments, onDropTask, onRemoveAssignment, onSplitAssignment, onMoveAssignment, onSetDayStatus, onReorderAssignment, onMergeAssignments, isMobile = false }: Props) {
   const { theme } = useTheme();
   const [isDragOver, setIsDragOver] = useState(false);
   const [showDropMenu, setShowDropMenu] = useState(false);
@@ -249,6 +251,35 @@ export default function DayColumn({ day, tasks, assignments, onDropTask, onRemov
                 e.dataTransfer.setData('assignmentId', assignment.id);
                 e.dataTransfer.setData('sourceDayId', day.id);
                 e.dataTransfer.effectAllowed = 'move';
+              }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                e.dataTransfer.dropEffect = 'move';
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const draggedAssignmentId = e.dataTransfer.getData('assignmentId');
+                const draggedTaskId = e.dataTransfer.getData('taskId');
+                const sourceDayId = e.dataTransfer.getData('sourceDayId');
+                
+                // Если перетаскиваем из другого дня - игнорируем (это обрабатывается родителем)
+                if (sourceDayId && sourceDayId !== day.id) {
+                  return;
+                }
+                
+                // Если перетаскиваем задачу внутри одного дня
+                if (draggedAssignmentId && draggedAssignmentId !== assignment.id) {
+                  // Если это та же задача - пытаемся слить
+                  if (draggedTaskId === task.id && onMergeAssignments) {
+                    onMergeAssignments(draggedAssignmentId, assignment.id);
+                  }
+                  // Если разные задачи - меняем местами
+                  else if (onReorderAssignment) {
+                    onReorderAssignment(draggedAssignmentId, assignment.id);
+                  }
+                }
               }}
               className="day-task-block"
               style={{

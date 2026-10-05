@@ -10,9 +10,11 @@ interface Props {
   onComplete: (taskId: string) => void;
   onEdit: (task: Task) => void;
   onDelete: (taskId: string) => void;
+  onReorder?: (draggedId: string, targetId: string) => void;
+  index?: number;
 }
 
-export default function TaskCard({ task, assignedHours, totalAssignedHours, onDragStart, onComplete, onEdit, onDelete }: Props) {
+export default function TaskCard({ task, assignedHours, totalAssignedHours, onDragStart, onComplete, onEdit, onDelete, onReorder, index }: Props) {
   const { theme } = useTheme();
   const remaining = task.totalHours - totalAssignedHours;
   const progress = totalAssignedHours / task.totalHours;
@@ -24,6 +26,17 @@ export default function TaskCard({ task, assignedHours, totalAssignedHours, onDr
         e.dataTransfer.setData('taskId', task.id);
         e.dataTransfer.effectAllowed = 'move';
         onDragStart(task.id);
+      }}
+      onDragOver={(e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+      }}
+      onDrop={(e) => {
+        e.preventDefault();
+        const draggedId = e.dataTransfer.getData('taskId');
+        if (draggedId && draggedId !== task.id && onReorder) {
+          onReorder(draggedId, task.id);
+        }
       }}
       style={{
         position: 'relative', borderRadius: 10, padding: 12,
