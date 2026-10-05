@@ -13,9 +13,10 @@ interface Props {
   onSplitAssignment: (assignmentId: string, hoursToSplit: number) => void;
   onMoveAssignment: (assignmentId: string, newDayId: string) => void;
   onSetDayStatus: (dayId: string, status: 'vacation' | 'holiday' | 'working') => void;
+  isMobile?: boolean;
 }
 
-export default function DayColumn({ day, tasks, assignments, onDropTask, onRemoveAssignment, onSplitAssignment, onMoveAssignment, onSetDayStatus }: Props) {
+export default function DayColumn({ day, tasks, assignments, onDropTask, onRemoveAssignment, onSplitAssignment, onMoveAssignment, onSetDayStatus, isMobile = false }: Props) {
   const { theme } = useTheme();
   const [isDragOver, setIsDragOver] = useState(false);
   const [showDropMenu, setShowDropMenu] = useState(false);
@@ -106,12 +107,13 @@ export default function DayColumn({ day, tasks, assignments, onDropTask, onRemov
       onDrop={handleDrop}
       style={{
         position: 'relative', display: 'flex', flexDirection: 'column',
-        borderRadius: 12, minHeight: 180, transition: 'all 0.2s',
+        borderRadius: 12, minHeight: isMobile ? 120 : 180, transition: 'all 0.2s',
         background: !day.isWorkingDay ? theme.bgTertiary : isVacation ? `${theme.warning}10` : isHoliday ? `${theme.accent2}10` : theme.bgCard,
         border: `${isToday ? '3px' : '1px'} solid ${!day.isWorkingDay ? theme.borderPrimary : isToday ? theme.accent1 : isDragOver ? theme.accent1 : isVacation ? theme.warning : isHoliday ? theme.accent2 : theme.borderPrimary}`,
         opacity: !day.isWorkingDay ? 0.4 : isNonWorking ? 0.7 : 1,
         boxShadow: isDragOver ? `0 0 0 2px ${theme.accent1}30` : theme.shadow,
-        overflow: 'hidden'
+        overflow: 'hidden',
+        width: isMobile ? '100%' : undefined
       }}
     >
       {/* Header */}

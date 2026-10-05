@@ -29,6 +29,8 @@ function App() {
     return !dismissed;
   });
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [showSidebar, setShowSidebar] = useState(false);
 
   const toggleHint = () => {
     const newState = !showHint;
@@ -56,6 +58,15 @@ function App() {
       }
     }
     setAuthChecked(true);
+  }, []);
+
+  // Отслеживание размера экрана
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   // Загрузка данных при входе
@@ -257,58 +268,93 @@ function App() {
         background: `${theme.bgCard}ee`, backdropFilter: 'blur(12px)',
         borderBottom: `1px solid ${theme.borderPrimary}`
       }}>
-        <div style={{ maxWidth: 1800, margin: '0 auto', padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+        <div style={{ 
+          maxWidth: 1800, 
+          margin: '0 auto', 
+          padding: isMobile ? '8px 12px' : '12px 16px', 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: isMobile ? 8 : 16
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <div style={{
-                width: 32, height: 32, borderRadius: 8,
-                background: theme.accent1, display: 'flex', alignItems: 'center', justifyContent: 'center'
+                width: isMobile ? 28 : 32, 
+                height: isMobile ? 28 : 32, 
+                borderRadius: 8,
+                background: theme.accent1, 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center'
               }}>
-                <svg width="20" height="20" fill="none" stroke="white" viewBox="0 0 24 24">
+                <svg width={isMobile ? 16 : 20} height={isMobile ? 16 : 20} fill="none" stroke="white" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
               </div>
-              <h1 style={{ fontSize: 18, fontWeight: 700, color: theme.textPrimary, margin: 0 }}>Месячный планировщик</h1>
+              {!isMobile && (
+                <h1 style={{ fontSize: 18, fontWeight: 700, color: theme.textPrimary, margin: 0 }}>Месячный планировщик</h1>
+              )}
             </div>
           </div>
 
           {/* Month navigation */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 4 : 8 }}>
             <button onClick={prevMonth} style={{
-              padding: 8, borderRadius: 8, border: 'none', cursor: 'pointer',
-              background: 'transparent', color: theme.textSecondary, transition: 'all 0.2s'
+              padding: isMobile ? 6 : 8, 
+              borderRadius: 8, 
+              border: 'none', 
+              cursor: 'pointer',
+              background: 'transparent', 
+              color: theme.textSecondary, 
+              transition: 'all 0.2s'
             }}
               onMouseEnter={e => (e.currentTarget.style.background = theme.bgHover)}
               onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
             >
-              <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg width={isMobile ? 16 : 20} height={isMobile ? 16 : 20} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
             </button>
-            <h2 style={{ fontSize: 16, fontWeight: 600, color: theme.textPrimary, minWidth: 160, textAlign: 'center', margin: 0 }}>
+            <h2 style={{ 
+              fontSize: isMobile ? 14 : 16, 
+              fontWeight: 600, 
+              color: theme.textPrimary, 
+              minWidth: isMobile ? 120 : 160, 
+              textAlign: 'center', 
+              margin: 0 
+            }}>
               {getMonthName(currentMonth)} {currentYear}
             </h2>
             <button onClick={nextMonth} style={{
-              padding: 8, borderRadius: 8, border: 'none', cursor: 'pointer',
-              background: 'transparent', color: theme.textSecondary, transition: 'all 0.2s'
+              padding: isMobile ? 6 : 8, 
+              borderRadius: 8, 
+              border: 'none', 
+              cursor: 'pointer',
+              background: 'transparent', 
+              color: theme.textSecondary, 
+              transition: 'all 0.2s'
             }}
               onMouseEnter={e => (e.currentTarget.style.background = theme.bgHover)}
               onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
             >
-              <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg width={isMobile ? 16 : 20} height={isMobile ? 16 : 20} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </button>
-            <button onClick={goToToday} style={{
-              marginLeft: 8, padding: '6px 12px', fontSize: 12, fontWeight: 500,
-              background: `${theme.accent1}15`, color: theme.accent1,
-              borderRadius: 8, border: 'none', cursor: 'pointer', transition: 'all 0.2s'
-            }}
-              onMouseEnter={e => (e.currentTarget.style.background = `${theme.accent1}25`)}
-              onMouseLeave={e => (e.currentTarget.style.background = `${theme.accent1}15`)}
-            >
-              Сегодня
-            </button>
+            {!isMobile && (
+              <button onClick={goToToday} style={{
+                marginLeft: 8, padding: '6px 12px', fontSize: 12, fontWeight: 500,
+                background: `${theme.accent1}15`, color: theme.accent1,
+                borderRadius: 8, border: 'none', cursor: 'pointer', transition: 'all 0.2s'
+              }}
+                onMouseEnter={e => (e.currentTarget.style.background = `${theme.accent1}25`)}
+                onMouseLeave={e => (e.currentTarget.style.background = `${theme.accent1}15`)}
+              >
+                Сегодня
+              </button>
+            )}
           </div>
 
           {/* Stats & Theme toggle */}
@@ -367,13 +413,15 @@ function App() {
             </div>
 
             {/* User info & logout */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: 12, color: theme.textTertiary }}>Профиль</div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: theme.textPrimary }}>
-                  {currentUser.displayName}
+            <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 4 : 8 }}>
+              {!isMobile && (
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: 12, color: theme.textTertiary }}>Профиль</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: theme.textPrimary }}>
+                    {currentUser.displayName}
+                  </div>
                 </div>
-              </div>
+              )}
               <button onClick={handleSignOut} style={{
                 padding: 8, borderRadius: 8, border: `1px solid ${theme.borderPrimary}`,
                 background: theme.bgSecondary, color: theme.textSecondary,
@@ -397,19 +445,23 @@ function App() {
               </button>
             </div>
 
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: 12, color: theme.textTertiary }}>Новые задачи</div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: theme.textPrimary }}>
-                {tasks.filter(t => t.status !== 'completed').length} шт / {formatHours(tasks.filter(t => t.status !== 'completed').reduce((sum, t) => sum + t.totalHours, 0))}
+            {!isMobile && (
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: 12, color: theme.textTertiary }}>Новые задачи</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: theme.textPrimary }}>
+                  {tasks.filter(t => t.status !== 'completed').length} шт / {formatHours(tasks.filter(t => t.status !== 'completed').reduce((sum, t) => sum + t.totalHours, 0))}
+                </div>
               </div>
-            </div>
+            )}
 
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: 12, color: theme.textTertiary }}>Рабочее время</div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: remainingWorkingHours > 0 ? theme.accent4 : theme.accent2 }}>
-                {formatHours(remainingWorkingHours)} / {formatHours(totalWorkingHours)}
+            {!isMobile && (
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: 12, color: theme.textTertiary }}>Рабочее время</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: remainingWorkingHours > 0 ? theme.accent4 : theme.accent2 }}>
+                  {formatHours(remainingWorkingHours)} / {formatHours(totalWorkingHours)}
+                </div>
               </div>
-            </div>
+            )}
             <button
               onClick={() => {
                 if (confirm('Очистить все данные текущего профиля?')) {
@@ -433,13 +485,80 @@ function App() {
         </div>
       </header>
 
-      <div style={{ maxWidth: 1800, margin: '0 auto', display: 'flex', gap: 16, padding: 16 }}>
+      <div style={{ 
+        maxWidth: 1800, 
+        margin: '0 auto', 
+        display: 'flex', 
+        gap: isMobile ? 0 : 16, 
+        padding: isMobile ? 8 : 16,
+        flexDirection: isMobile ? 'column' : 'row'
+      }}>
+        {/* Mobile menu button */}
+        {isMobile && (
+          <button
+            onClick={() => setShowSidebar(!showSidebar)}
+            style={{
+              position: 'fixed',
+              bottom: 20,
+              right: 20,
+              width: 56,
+              height: 56,
+              borderRadius: '50%',
+              background: theme.accent1,
+              color: '#fff',
+              border: 'none',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+              cursor: 'pointer',
+              zIndex: 100,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+          </button>
+        )}
+
         {/* Sidebar */}
         <aside style={{
-          width: 288, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 16,
-          position: 'sticky', top: 72, alignSelf: 'flex-start',
-          maxHeight: 'calc(100vh - 88px)'
+          width: isMobile ? '100%' : 288, 
+          flexShrink: 0, 
+          display: isMobile && !showSidebar ? 'none' : 'flex',
+          flexDirection: 'column', 
+          gap: 16,
+          position: isMobile ? 'fixed' : 'sticky',
+          top: isMobile ? 0 : 72,
+          left: isMobile ? 0 : undefined,
+          right: isMobile ? 0 : undefined,
+          bottom: isMobile ? 0 : undefined,
+          background: isMobile ? theme.bgPrimary : 'transparent',
+          zIndex: isMobile ? 99 : 1,
+          padding: isMobile ? 16 : 0,
+          overflowY: isMobile ? 'auto' : undefined,
+          maxHeight: isMobile ? '100vh' : 'calc(100vh - 88px)'
         }}>
+          {/* Mobile close button */}
+          {isMobile && (
+            <button
+              onClick={() => setShowSidebar(false)}
+              style={{
+                alignSelf: 'flex-end',
+                padding: 8,
+                borderRadius: 8,
+                border: 'none',
+                background: theme.bgSecondary,
+                color: theme.textSecondary,
+                cursor: 'pointer',
+                marginBottom: 8
+              }}
+            >
+              <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
           <div style={{
             background: theme.bgCard, borderRadius: 16, border: `1px solid ${theme.borderPrimary}`,
             padding: 16, boxShadow: theme.shadow
@@ -547,6 +666,7 @@ function App() {
                 onSplitAssignment={splitAssignment}
                 onMoveAssignment={moveAssignment}
                 onSetDayStatus={setDayStatus}
+                isMobile={isMobile}
               />
             ))}
           </div>
@@ -612,14 +732,17 @@ interface WeekRowProps {
   onSplitAssignment: (assignmentId: string, hoursToSplit: number) => void;
   onMoveAssignment: (assignmentId: string, newDayId: string) => void;
   onSetDayStatus: (dayId: string, status: 'vacation' | 'holiday' | 'working') => void;
+  isMobile: boolean;
 }
 
-function WeekRow({ week, tasks, assignments, dayStatuses, onDropTask, onRemoveAssignment, onSplitAssignment, onMoveAssignment, onSetDayStatus }: WeekRowProps) {
+function WeekRow({ week, tasks, assignments, dayStatuses, onDropTask, onRemoveAssignment, onSplitAssignment, onMoveAssignment, onSetDayStatus, isMobile }: WeekRowProps & { isMobile: boolean }) {
   return (
     <div>
       <div style={{
-        display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)',
-        gap: 12
+        display: isMobile ? 'flex' : 'grid',
+        gridTemplateColumns: isMobile ? undefined : 'repeat(5, 1fr)',
+        flexDirection: isMobile ? 'column' : undefined,
+        gap: isMobile ? 8 : 12
       }}>
         {week.days.map((day) => (
           <DayColumn
@@ -632,6 +755,7 @@ function WeekRow({ week, tasks, assignments, dayStatuses, onDropTask, onRemoveAs
             onSplitAssignment={onSplitAssignment}
             onMoveAssignment={onMoveAssignment}
             onSetDayStatus={onSetDayStatus}
+            isMobile={isMobile}
           />
         ))}
       </div>
