@@ -403,10 +403,7 @@ function App() {
                 {tasks.filter(t => t.status !== 'completed').length} шт / {formatHours(tasks.filter(t => t.status !== 'completed').reduce((sum, t) => sum + t.totalHours, 0))}
               </div>
             </div>
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: 12, color: theme.textTertiary }}>Назначено</div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: theme.accent1 }}>{formatHours(totalAssignedHours)}</div>
-            </div>
+
             <div style={{ textAlign: 'right' }}>
               <div style={{ fontSize: 12, color: theme.textTertiary }}>Рабочее время</div>
               <div style={{ fontSize: 14, fontWeight: 700, color: remainingWorkingHours > 0 ? theme.accent4 : theme.accent2 }}>
