@@ -152,7 +152,13 @@ export default function CompletedTasksList({ tasks, assignments, days, onReturnT
               </div>
             )}
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              gap: 8,
+              maxHeight: '400px',
+              overflowY: 'auto'
+            }}>
             {filteredTasks.map(task => (
               <div
                 key={task.id}

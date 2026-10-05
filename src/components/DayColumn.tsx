@@ -13,9 +13,12 @@ interface Props {
   onSplitAssignment: (assignmentId: string, hoursToSplit: number) => void;
   onMoveAssignment: (assignmentId: string, newDayId: string) => void;
   onSetDayStatus: (dayId: string, status: 'vacation' | 'holiday' | 'working') => void;
+  onReorderAssignment?: (sourceId: string, targetId: string) => void;
+  onMergeAssignments?: (sourceId: string, targetId: string) => void;
+  isMobile?: boolean;
 }
 
-export default function DayColumn({ day, tasks, assignments, onDropTask, onRemoveAssignment, onSplitAssignment, onMoveAssignment, onSetDayStatus }: Props) {
+export default function DayColumn({ day, tasks, assignments, onDropTask, onRemoveAssignment, onSplitAssignment, onMoveAssignment, onSetDayStatus, onReorderAssignment, onMergeAssignments, isMobile = false }: Props) {
   const { theme } = useTheme();
   const [isDragOver, setIsDragOver] = useState(false);
   const [showDropMenu, setShowDropMenu] = useState(false);
@@ -106,12 +109,13 @@ export default function DayColumn({ day, tasks, assignments, onDropTask, onRemov
       onDrop={handleDrop}
       style={{
         position: 'relative', display: 'flex', flexDirection: 'column',
-        borderRadius: 12, minHeight: 180, transition: 'all 0.2s',
+        borderRadius: 12, minHeight: isMobile ? 120 : 180, transition: 'all 0.2s',
         background: !day.isWorkingDay ? theme.bgTertiary : isVacation ? `${theme.warning}10` : isHoliday ? `${theme.accent2}10` : theme.bgCard,
         border: `${isToday ? '3px' : '1px'} solid ${!day.isWorkingDay ? theme.borderPrimary : isToday ? theme.accent1 : isDragOver ? theme.accent1 : isVacation ? theme.warning : isHoliday ? theme.accent2 : theme.borderPrimary}`,
         opacity: !day.isWorkingDay ? 0.4 : isNonWorking ? 0.7 : 1,
         boxShadow: isDragOver ? `0 0 0 2px ${theme.accent1}30` : theme.shadow,
-        overflow: 'hidden'
+        overflow: 'hidden',
+        width: isMobile ? '100%' : undefined
       }}
     >
       {/* Header */}
@@ -238,6 +242,13 @@ export default function DayColumn({ day, tasks, assignments, onDropTask, onRemov
         {day.isWorkingDay && dayAssignments.map((assignment) => {
           const task = getTaskForAssignment(assignment);
           if (!task) return null;
+          
+          // Определяем цвета в зависимости от статуса задачи
+          const isCompleted = task.status === 'completed';
+          const taskColor = isCompleted ? theme.textTertiary : task.color;
+          const taskBg = isCompleted ? `${theme.textTertiary}15` : `${task.color}15`;
+          const taskBadgeBg = isCompleted ? `${theme.textTertiary}20` : `${task.color}20`;
+          
           return (
             <div
               key={assignment.id}
@@ -248,24 +259,59 @@ export default function DayColumn({ day, tasks, assignments, onDropTask, onRemov
                 e.dataTransfer.setData('sourceDayId', day.id);
                 e.dataTransfer.effectAllowed = 'move';
               }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                e.dataTransfer.dropEffect = 'move';
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const draggedAssignmentId = e.dataTransfer.getData('assignmentId');
+                const draggedTaskId = e.dataTransfer.getData('taskId');
+                const sourceDayId = e.dataTransfer.getData('sourceDayId');
+                
+                // Если перетаскиваем из другого дня - не обрабатываем здесь
+                // Это позволит событию всплыть до родителя для показа меню выбора времени
+                if (sourceDayId && sourceDayId !== day.id) {
+                  return;
+                }
+                
+                // Если перетаскиваем задачу внутри одного дня
+                if (draggedAssignmentId && draggedAssignmentId !== assignment.id) {
+                  // Сбрасываем showDropMenu, чтобы оно не оставалось висеть
+                  setShowDropMenu(false);
+                  
+                  // Если это та же задача - пытаемся слить
+                  if (draggedTaskId === task.id && onMergeAssignments) {
+                    onMergeAssignments(draggedAssignmentId, assignment.id);
+                  }
+                  // Если разные задачи - меняем местами
+                  else if (onReorderAssignment) {
+                    onReorderAssignment(draggedAssignmentId, assignment.id);
+                  }
+                }
+              }}
               className="day-task-block"
               style={{
                 position: 'relative', borderRadius: 8, padding: '8px 10px',
                 cursor: 'grab', transition: 'all 0.2s',
-                background: `${task.color}15`,
-                borderLeft: `3px solid ${task.color}`,
+                background: taskBg,
+                borderLeft: `3px solid ${taskColor}`,
+                opacity: isCompleted ? 0.6 : 1,
               }}
               onMouseEnter={e => { e.currentTarget.style.boxShadow = theme.shadowLg; e.currentTarget.style.transform = 'scale(1.02)'; }}
               onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'scale(1)'; }}
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4 }}>
-                <span style={{ fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: task.color }}>
+                <span style={{ fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: taskColor }}>
                   {task.title}
                 </span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
                   <span style={{
                     fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 6,
-                    background: `${task.color}20`, color: task.color
+                    background: taskBadgeBg, color: taskColor
                   }}>
                     {formatHours(assignment.hours)}
                   </span>

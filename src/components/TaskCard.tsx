@@ -1,3 +1,4 @@
+import { useState, useRef, useEffect } from 'react';
 import { Task } from '../types';
 import { useTheme } from '../ThemeContext';
 import { formatHours } from '../utils/timeFormat';
@@ -10,21 +11,104 @@ interface Props {
   onComplete: (taskId: string) => void;
   onEdit: (task: Task) => void;
   onDelete: (taskId: string) => void;
+  onReorder?: (draggedId: string, targetId: string) => void;
+  index?: number;
 }
 
-export default function TaskCard({ task, assignedHours, totalAssignedHours, onDragStart, onComplete, onEdit, onDelete }: Props) {
+export default function TaskCard({ task, assignedHours, totalAssignedHours, onDragStart, onComplete, onEdit, onDelete, onReorder, index }: Props) {
   const { theme } = useTheme();
+  const [dragOverPosition, setDragOverPosition] = useState<'above' | 'below' | null>(null);
+  const dragLeaveTimeout = useRef<number | null>(null);
   const remaining = task.totalHours - totalAssignedHours;
   const progress = totalAssignedHours / task.totalHours;
 
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    
+    // Проверяем что перетаскивается задача (не из другого дня)
+    const draggedTaskId = e.dataTransfer.getData('taskId');
+    const sourceDayId = e.dataTransfer.getData('sourceDayId');
+    
+    // Если перетаскивается задача из другого дня, не показываем индикатор
+    if (sourceDayId) {
+      return;
+    }
+    
+    // Если перетаскивается та же задача, не показываем индикатор
+    if (draggedTaskId === task.id) {
+      return;
+    }
+    
+    // Отменяем предыдущий таймер если он есть
+    if (dragLeaveTimeout.current) {
+      clearTimeout(dragLeaveTimeout.current);
+      dragLeaveTimeout.current = null;
+    }
+    
+    // Определяем позицию курсора относительно карточки
+    const rect = e.currentTarget.getBoundingClientRect();
+    const midY = rect.top + rect.height / 2;
+    
+    if (e.clientY < midY) {
+      setDragOverPosition('above');
+    } else {
+      setDragOverPosition('below');
+    }
+  };
+
+  const handleDragLeave = () => {
+    // Используем задержку, чтобы избежать моргания при быстрых пересечениях границы
+    if (dragLeaveTimeout.current) {
+      clearTimeout(dragLeaveTimeout.current);
+    }
+    dragLeaveTimeout.current = setTimeout(() => {
+      setDragOverPosition(null);
+    }, 50);
+  };
+
+  // Очистка таймера при unmount
+  useEffect(() => {
+    return () => {
+      if (dragLeaveTimeout.current) {
+        clearTimeout(dragLeaveTimeout.current);
+      }
+    };
+  }, []);
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOverPosition(null);
+    
+    // Отменяем таймер если он есть
+    if (dragLeaveTimeout.current) {
+      clearTimeout(dragLeaveTimeout.current);
+      dragLeaveTimeout.current = null;
+    }
+    
+    const draggedId = e.dataTransfer.getData('taskId');
+    if (draggedId && draggedId !== task.id && onReorder) {
+      onReorder(draggedId, task.id);
+    }
+  };
+
   return (
-    <div
-      draggable
-      onDragStart={(e) => {
-        e.dataTransfer.setData('taskId', task.id);
-        e.dataTransfer.effectAllowed = 'move';
-        onDragStart(task.id);
-      }}
+    <div style={{ position: 'relative' }}>
+      {/* Placeholder above */}
+      {dragOverPosition === 'above' && (
+        <div className="drag-placeholder drag-placeholder-above" />
+      )}
+      
+      <div
+        draggable
+        onDragStart={(e) => {
+          e.dataTransfer.setData('taskId', task.id);
+          e.dataTransfer.effectAllowed = 'move';
+          onDragStart(task.id);
+        }}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
       style={{
         position: 'relative', borderRadius: 10, padding: 12,
         cursor: 'grab', border: `1px solid ${theme.borderPrimary}`,
@@ -52,7 +136,7 @@ export default function TaskCard({ task, assignedHours, totalAssignedHours, onDr
             </span>
             {remaining > 0 && (
               <span style={{ fontSize: 12, color: theme.warning, fontWeight: 500 }}>
-                ({formatHours(remaining)} свободно)
+                ({formatHours(remaining)} не запланировано)
               </span>
             )}
             {remaining === 0 && (
@@ -118,6 +202,12 @@ export default function TaskCard({ task, assignedHours, totalAssignedHours, onDr
       <style>{`
         div:hover > .task-card-actions { opacity: 1 !important; }
       `}</style>
+      </div>
+      
+      {/* Placeholder below */}
+      {dragOverPosition === 'below' && (
+        <div className="drag-placeholder drag-placeholder-below" />
+      )}
     </div>
   );
 }
