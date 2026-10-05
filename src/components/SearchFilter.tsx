@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useTheme } from '../ThemeContext';
 
 interface Props {
@@ -14,6 +15,7 @@ export default function SearchFilter({
   onStatusFilterChange 
 }: Props) {
   const { theme } = useTheme();
+  const [isExpanded, setIsExpanded] = useState(false);
 
   return (
     <div style={{
@@ -24,8 +26,51 @@ export default function SearchFilter({
       boxShadow: theme.shadow,
       marginBottom: 16
     }}>
+      {/* Кнопка сворачивания */}
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        style={{
+          width: '100%',
+          padding: 0,
+          background: 'none',
+          border: 'none',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          cursor: 'pointer',
+          color: theme.textPrimary
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <svg width="16" height="16" fill="none" stroke={theme.accent1} viewBox="0 0 24 24">
+            <circle cx="11" cy="11" r="8" />
+            <path strokeLinecap="round" d="M21 21l-4.35-4.35" />
+          </svg>
+          <span style={{ fontSize: 14, fontWeight: 600 }}>Поиск и фильтр</span>
+          {searchQuery && (
+            <span style={{
+              fontSize: 11,
+              padding: '2px 6px',
+              borderRadius: 8,
+              background: `${theme.accent1}20`,
+              color: theme.accent1
+            }}>
+              «{searchQuery}»
+            </span>
+          )}
+        </div>
+        <svg
+          width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+          style={{ transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {isExpanded && (
+        <>
       {/* Поле поиска */}
-      <div style={{ position: 'relative', marginBottom: 12 }}>
+      <div style={{ position: 'relative', marginTop: 12, marginBottom: 12 }}>
         <svg
           width="16"
           height="16"
@@ -119,6 +164,8 @@ export default function SearchFilter({
           Выполненные
         </button>
       </div>
+        </>
+      )}
     </div>
   );
 }
