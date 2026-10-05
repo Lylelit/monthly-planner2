@@ -1,9 +1,12 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { Task, TaskAssignment, Week } from './types';
 import { getMonthWeeks, getMonthName, generateId, HOURS_PER_DAY } from './utils/dateUtils';
+import { formatHours } from './utils/timeFormat';
 import TaskForm from './components/TaskForm';
 import TaskCard from './components/TaskCard';
 import DayColumn from './components/DayColumn';
+import CompletedTasksList from './components/CompletedTasksList';
+import EditTaskModal from './components/EditTaskModal';
 import AuthScreen, { Profile } from './components/AuthScreen';
 import { loadTasks, loadAssignments, saveTasks, saveAssignments, setCurrentProfile } from './services/storageService';
 import { useTheme } from './ThemeContext';
@@ -18,11 +21,24 @@ function App() {
   const [currentMonth, setCurrentMonth] = useState(now.getMonth());
   const [tasks, setTasks] = useState<Task[]>([]);
   const [assignments, setAssignments] = useState<TaskAssignment[]>([]);
+  const [dayStatuses, setDayStatuses] = useState<Record<string, 'vacation' | 'holiday'>>({});
   const [, setDraggedTaskId] = useState<string | null>(null);
-  const [showHint, setShowHint] = useState(() => {
-    return !localStorage.getItem('planner-hint-dismissed');
-  });
   const [isLoading, setIsLoading] = useState(true);
+  const [showHint, setShowHint] = useState(() => {
+    const dismissed = localStorage.getItem('planner-hint-dismissed');
+    return !dismissed;
+  });
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+
+  const toggleHint = () => {
+    const newState = !showHint;
+    setShowHint(newState);
+    if (!newState) {
+      localStorage.setItem('planner-hint-dismissed', 'true');
+    } else {
+      localStorage.removeItem('planner-hint-dismissed');
+    }
+  };
 
   // Проверка авторизации при старте
   useEffect(() => {
@@ -57,18 +73,23 @@ function App() {
         ]);
         if (savedTasks.length > 0) setTasks(savedTasks);
         if (savedAssignments.length > 0) setAssignments(savedAssignments);
+
+        // Загружаем статусы дней
+        const savedDayStatuses = localStorage.getItem(`planner-day-statuses-${currentUser.login}`);
+        if (savedDayStatuses) {
+          setDayStatuses(JSON.parse(savedDayStatuses));
+        }
       } catch (error) {
         console.error('Error loading ', error);
       } finally {
         setIsLoading(false);
       }
     }
-
+    
     if (authChecked) {
       loadData();
     }
   }, [currentUser, authChecked]);
-
   useEffect(() => { if (!isLoading && currentUser) saveTasks(tasks); }, [tasks, isLoading, currentUser]);
   useEffect(() => { if (!isLoading && currentUser) saveAssignments(assignments); }, [assignments, isLoading, currentUser]);
 
@@ -93,25 +114,43 @@ function App() {
     setAssignments((prev) => prev.filter((a) => a.taskId !== taskId));
   }, []);
 
-  const splitTask = useCallback((taskId: string) => {
-    const task = tasks.find((t) => t.id === taskId);
-    if (!task) return;
-    const totalAssigned = assignments.filter((a) => a.taskId === taskId).reduce((sum, a) => sum + a.hours, 0);
-    const remaining = task.totalHours - totalAssigned;
-    if (remaining <= 1) return;
-    const splitHours = Math.floor(remaining / 2);
-    const newTask: Task = { ...task, id: generateId(), title: `${task.title} (часть 2)`, totalHours: remaining - splitHours };
-    setTasks((prev) => [...prev.map((t) => t.id === taskId ? { ...t, totalHours: totalAssigned + splitHours } : t), newTask]);
-  }, [tasks, assignments]);
+  const completeTask = useCallback((taskId: string) => {
+    setTasks((prev) => prev.map(t => 
+      t.id === taskId ? { ...t, status: 'completed' as const, completedAt: new Date().toISOString() } : t
+    ));
+  }, []);
 
-  const splitAssignment = useCallback((assignmentId: string) => {
+  const returnToNew = useCallback((taskId: string, additionalHours: number) => {
+    setTasks((prev) => prev.map(t => 
+      t.id === taskId ? { ...t, status: 'new' as const, completedAt: undefined, totalHours: t.totalHours + additionalHours } : t
+    ));
+  }, []);
+
+  const editTask = useCallback((updatedTask: Task) => {
+    setTasks((prev) => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
+    setEditingTask(null);
+  }, []);
+
+  const setDayStatus = useCallback((dayId: string, status: 'vacation' | 'holiday' | 'working') => {
+    setDayStatuses((prev) => {
+      const updated = { ...prev };
+      if (status === 'working') {
+        delete updated[dayId];
+      } else {
+        updated[dayId] = status;
+      }
+      localStorage.setItem(`planner-day-statuses-${currentUser?.login}`, JSON.stringify(updated));
+      return updated;
+    });
+  }, [currentUser]);
+
+  const splitAssignment = useCallback((assignmentId: string, hoursToSplit: number) => {
     const assignment = assignments.find((a) => a.id === assignmentId);
-    if (!assignment || assignment.hours <= 1) return;
-    const half = Math.floor(assignment.hours / 2);
-    const rest = assignment.hours - half;
+    if (!assignment || hoursToSplit <= 0 || hoursToSplit >= assignment.hours) return;
+    const rest = assignment.hours - hoursToSplit;
     setAssignments((prev) => {
       const filtered = prev.filter((a) => a.id !== assignmentId);
-      return [...filtered, { ...assignment, hours: half }, { ...assignment, id: generateId(), hours: rest, order: assignment.order + 0.5 }];
+      return [...filtered, { ...assignment, hours: hoursToSplit }, { ...assignment, id: generateId(), hours: rest, order: assignment.order + 0.5 }];
     });
   }, [assignments]);
 
@@ -147,9 +186,11 @@ function App() {
   const totalTaskHours = tasks.reduce((sum, t) => sum + t.totalHours, 0);
   const totalAssignedHours = assignments.reduce((sum, a) => sum + a.hours, 0);
 
-  // Расчёт общего рабочего времени за месяц (8 часов × рабочие дни)
+  // Расчёт общего рабочего времени за месяц (8 часов × рабочие дни, исключая отпуск/праздники)
   const workingDaysInMonth = weeks.reduce((count, week) => {
-    return count + week.days.filter(day => day.isWorkingDay).length;
+    return count + week.days.filter(day => 
+      day.isWorkingDay && !dayStatuses[day.id]
+    ).length;
   }, 0);
   const totalWorkingHours = workingDaysInMonth * HOURS_PER_DAY;
   const remainingWorkingHours = totalWorkingHours - totalAssignedHours;
@@ -272,18 +313,58 @@ function App() {
 
           {/* Stats & Theme toggle */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            {/* Hint toggle */}
+            {!showHint && (
+              <button onClick={toggleHint} style={{
+                padding: 8, borderRadius: 8, border: `1px solid ${theme.borderPrimary}`,
+                background: theme.bgSecondary, color: theme.textSecondary,
+                cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center'
+              }}
+                onMouseEnter={e => (e.currentTarget.style.background = theme.bgHover)}
+                onMouseLeave={e => (e.currentTarget.style.background = theme.bgSecondary)}
+                title="Показать подсказку"
+              >
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                </svg>
+              </button>
+            )}
+
             {/* Theme toggle */}
-            <button onClick={toggleTheme} style={{
-              padding: 8, borderRadius: 8, border: `1px solid ${theme.borderPrimary}`,
-              background: theme.bgSecondary, color: theme.textSecondary,
-              cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: 4
-            }}
-              onMouseEnter={e => (e.currentTarget.style.background = theme.bgHover)}
-              onMouseLeave={e => (e.currentTarget.style.background = theme.bgSecondary)}
-            >
-              {mode === 'light' ? '🌙' : '☀️'}
-              <span style={{ fontSize: 12 }}>{mode === 'light' ? 'Тёмная' : 'Светлая'}</span>
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <svg width="16" height="16" fill="none" stroke={theme.textTertiary} viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="5"/>
+                <path strokeLinecap="round" d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72l1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+              </svg>
+              <button 
+                onClick={toggleTheme}
+                style={{
+                  width: 44,
+                  height: 24,
+                  borderRadius: 12,
+                  border: 'none',
+                  background: mode === 'dark' ? theme.accent1 : theme.bgTertiary,
+                  cursor: 'pointer',
+                  position: 'relative',
+                  transition: 'background 0.3s ease'
+                }}
+              >
+                <div style={{
+                  width: 18,
+                  height: 18,
+                  borderRadius: '50%',
+                  background: '#fff',
+                  position: 'absolute',
+                  top: 3,
+                  left: mode === 'dark' ? 23 : 3,
+                  transition: 'left 0.3s ease',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                }}/>
+              </button>
+              <svg width="16" height="16" fill="none" stroke={theme.textTertiary} viewBox="0 0 24 24">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+              </svg>
+            </div>
 
             {/* User info & logout */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -318,16 +399,16 @@ function App() {
 
             <div style={{ textAlign: 'right' }}>
               <div style={{ fontSize: 12, color: theme.textTertiary }}>Задачи</div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: theme.textPrimary }}>{tasks.length} шт / {totalTaskHours}ч</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: theme.textPrimary }}>{tasks.length} шт / {formatHours(totalTaskHours)}</div>
             </div>
             <div style={{ textAlign: 'right' }}>
               <div style={{ fontSize: 12, color: theme.textTertiary }}>Назначено</div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: theme.accent1 }}>{totalAssignedHours}ч</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: theme.accent1 }}>{formatHours(totalAssignedHours)}</div>
             </div>
             <div style={{ textAlign: 'right' }}>
               <div style={{ fontSize: 12, color: theme.textTertiary }}>Рабочее время</div>
               <div style={{ fontSize: 14, fontWeight: 700, color: remainingWorkingHours > 0 ? theme.accent4 : theme.accent2 }}>
-                {remainingWorkingHours}ч / {totalWorkingHours}ч
+                {formatHours(remainingWorkingHours)} / {formatHours(totalWorkingHours)}
               </div>
             </div>
             <button
@@ -358,7 +439,7 @@ function App() {
         <aside style={{
           width: 288, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 16,
           position: 'sticky', top: 72, alignSelf: 'flex-start',
-          maxHeight: 'calc(100vh - 88px)', overflowY: 'auto'
+          maxHeight: 'calc(100vh - 88px)'
         }}>
           <div style={{
             background: theme.bgCard, borderRadius: 16, border: `1px solid ${theme.borderPrimary}`,
@@ -373,23 +454,25 @@ function App() {
             <TaskForm onAddTask={addTask} />
           </div>
 
-          {tasks.length > 0 && (
+          {/* Новые задачи */}
+          {tasks.filter(t => t.status !== 'completed').length > 0 && (
             <div style={{
               background: theme.bgCard, borderRadius: 16, border: `1px solid ${theme.borderPrimary}`,
               padding: 16, boxShadow: theme.shadow
             }}>
               <h3 style={{ fontSize: 14, fontWeight: 600, color: theme.textPrimary, marginBottom: 12 }}>
-                Список ({tasks.length})
+                Новые задачи ({tasks.filter(t => t.status !== 'completed').length})
               </h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {tasks.map((task) => (
+                {tasks.filter(t => t.status !== 'completed').map((task) => (
                   <TaskCard
                     key={task.id}
                     task={task}
                     assignedHours={getTaskAssignedHours(task.id)}
                     totalAssignedHours={getTaskAssignedHours(task.id)}
                     onDragStart={setDraggedTaskId}
-                    onSplit={splitTask}
+                    onComplete={completeTask}
+                    onEdit={setEditingTask}
                     onDelete={deleteTask}
                   />
                 ))}
@@ -397,12 +480,22 @@ function App() {
             </div>
           )}
 
-          {tasks.length === 0 && (
+          {/* Выполненные задачи */}
+          <CompletedTasksList
+            tasks={tasks}
+            assignments={assignments}
+            days={weeks.flatMap(w => w.days)}
+            onReturnToNew={returnToNew}
+          />
+
+          {tasks.filter(t => t.status !== 'completed').length === 0 && tasks.filter(t => t.status === 'completed').length === 0 && (
             <div style={{
               background: theme.bgSecondary, borderRadius: 16, border: `1px solid ${theme.borderPrimary}`,
               padding: 24, textAlign: 'center'
             }}>
-              <div style={{ fontSize: 32, marginBottom: 8 }}>📋</div>
+              <svg width="32" height="32" fill="none" stroke={theme.textTertiary} viewBox="0 0 24 24" style={{ marginBottom: 8 }}>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+              </svg>
               <p style={{ fontSize: 14, color: theme.textTertiary }}>Создайте первую задачу,<br/>чтобы начать планирование</p>
             </div>
           )}
@@ -416,7 +509,7 @@ function App() {
               border: `1px solid ${theme.accent1}30`, padding: 16, position: 'relative'
             }}>
               <button
-                onClick={() => { setShowHint(false); localStorage.setItem('planner-hint-dismissed', '1'); }}
+                onClick={toggleHint}
                 style={{
                   position: 'absolute', top: 8, right: 8, padding: 4, borderRadius: 6,
                   border: 'none', cursor: 'pointer', background: 'transparent', color: theme.textTertiary
@@ -426,7 +519,12 @@ function App() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
-              <h4 style={{ fontSize: 14, fontWeight: 600, color: theme.accent1, marginBottom: 8 }}>💡 Как пользоваться</h4>
+              <h4 style={{ fontSize: 14, fontWeight: 600, color: theme.accent1, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+                </svg>
+                Как пользоваться
+              </h4>
               <ul style={{ fontSize: 12, color: theme.textSecondary, listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
                 <li>• <b>Создайте задачу</b> слева с оценкой в часах</li>
                 <li>• <b>Перетащите</b> задачу на любой день — появится выбор часов</li>
@@ -444,22 +542,35 @@ function App() {
                 week={week}
                 tasks={tasks}
                 assignments={assignments}
+                dayStatuses={dayStatuses}
                 onDropTask={dropTask}
                 onRemoveAssignment={removeAssignment}
                 onSplitAssignment={splitAssignment}
                 onMoveAssignment={moveAssignment}
+                onSetDayStatus={setDayStatus}
               />
             ))}
           </div>
 
           {weeks.length === 0 && (
             <div style={{ textAlign: 'center', padding: '80px 0', color: theme.textTertiary }}>
-              <div style={{ fontSize: 40, marginBottom: 16 }}>📅</div>
+              <svg width="40" height="40" fill="none" stroke={theme.textTertiary} viewBox="0 0 24 24" style={{ marginBottom: 16 }}>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+              </svg>
               <p>Нет рабочих дней в этом месяце</p>
             </div>
           )}
         </main>
       </div>
+
+      {/* Edit Task Modal */}
+      {editingTask && (
+        <EditTaskModal
+          task={editingTask}
+          onSave={editTask}
+          onCancel={() => setEditingTask(null)}
+        />
+      )}
 
       {/* Footer */}
       <footer style={{
@@ -468,7 +579,9 @@ function App() {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, color: theme.textTertiary }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span>📅</span>
+            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+            </svg>
             <span>Месячный планировщик задач</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
@@ -494,13 +607,15 @@ interface WeekRowProps {
   week: Week;
   tasks: Task[];
   assignments: TaskAssignment[];
+  dayStatuses: Record<string, 'vacation' | 'holiday'>;
   onDropTask: (taskId: string, dayId: string, hours: number) => void;
   onRemoveAssignment: (assignmentId: string) => void;
-  onSplitAssignment: (assignmentId: string) => void;
+  onSplitAssignment: (assignmentId: string, hoursToSplit: number) => void;
   onMoveAssignment: (assignmentId: string, newDayId: string) => void;
+  onSetDayStatus: (dayId: string, status: 'vacation' | 'holiday' | 'working') => void;
 }
 
-function WeekRow({ week, tasks, assignments, onDropTask, onRemoveAssignment, onSplitAssignment, onMoveAssignment }: WeekRowProps) {
+function WeekRow({ week, tasks, assignments, dayStatuses, onDropTask, onRemoveAssignment, onSplitAssignment, onMoveAssignment, onSetDayStatus }: WeekRowProps) {
   return (
     <div>
       <div style={{
@@ -510,13 +625,14 @@ function WeekRow({ week, tasks, assignments, onDropTask, onRemoveAssignment, onS
         {week.days.map((day) => (
           <DayColumn
             key={day.id}
-            day={day}
+            day={{ ...day, status: dayStatuses[day.id] || 'working' }}
             tasks={tasks}
             assignments={assignments}
             onDropTask={onDropTask}
             onRemoveAssignment={onRemoveAssignment}
             onSplitAssignment={onSplitAssignment}
             onMoveAssignment={onMoveAssignment}
+            onSetDayStatus={onSetDayStatus}
           />
         ))}
       </div>

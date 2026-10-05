@@ -4,6 +4,8 @@ export interface Task {
   totalHours: number;
   color: string;
   description?: string;
+  status?: 'new' | 'completed';
+  completedAt?: string;
 }
 
 export interface TaskAssignment {
@@ -19,6 +21,7 @@ export interface Day {
   date: Date;
   dayOfWeek: number; // 1-5 (Mon-Fri)
   isWorkingDay: boolean;
+  status?: 'working' | 'vacation' | 'holiday';
 }
 
 export interface Week {

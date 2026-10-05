@@ -1,9 +1,21 @@
 import React, { useState } from 'react';
 import { Task } from '../types';
 import { generateId } from '../utils/dateUtils';
+import { formatHours, parseTimeInput } from '../utils/timeFormat';
 import { useTheme } from '../ThemeContext';
 
-const COLORS = ['#3996D3', '#EF7D00', '#87B4E1', '#89BC6B', '#F6A758'];
+const COLORS = [
+  '#6366f1', // индиго
+  '#8b5cf6', // фиолетовый
+  '#ec4899', // розовый
+  '#f43f5e', // красный
+  '#f97316', // оранжевый
+  '#eab308', // жёлтый
+  '#22c55e', // зелёный
+  '#14b8a6', // бирюзовый
+  '#06b6d4', // циан
+  '#3b82f6', // синий
+];
 
 interface Props {
   onAddTask: (task: Task) => void;
@@ -19,7 +31,11 @@ export default function TaskForm({ onAddTask }: Props) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !hours) return;
-    const task: Task = { id: generateId(), title: title.trim(), totalHours: parseFloat(hours), color };
+    
+    const parsedHours = parseTimeInput(hours);
+    if (parsedHours === null || parsedHours <= 0) return;
+    
+    const task: Task = { id: generateId(), title: title.trim(), totalHours: parsedHours, color };
     onAddTask(task);
     setTitle('');
     setHours('');
@@ -67,26 +83,59 @@ export default function TaskForm({ onAddTask }: Props) {
         onBlur={e => (e.currentTarget.style.borderColor = theme.borderPrimary)}
         autoFocus
       />
-      <div style={{ display: 'flex', gap: 8 }}>
-        <div style={{ flex: 1 }}>
-          <label style={{ fontSize: 12, color: theme.textTertiary, marginBottom: 4, display: 'block' }}>Часы</label>
-          <input
-            type="number"
-            min="0.5"
-            max="80"
-            step="0.5"
-            placeholder="0"
-            value={hours}
-            onChange={(e) => setHours(e.target.value)}
-            style={{
-              width: '100%', padding: '8px 12px', borderRadius: 8, fontSize: 14,
-              border: `1px solid ${theme.borderPrimary}`, background: theme.bgCard,
-              color: theme.textPrimary, outline: 'none', transition: 'border-color 0.2s',
-              boxSizing: 'border-box'
-            }}
-            onFocus={e => (e.currentTarget.style.borderColor = theme.accent1)}
-            onBlur={e => (e.currentTarget.style.borderColor = theme.borderPrimary)}
-          />
+      <div>
+        <label style={{ fontSize: 12, color: theme.textTertiary, marginBottom: 8, display: 'block' }}>Время выполнения</label>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+          {[0.25, 0.5, 1, 1.5, 2, 2.5, 3, 4].map((h) => (
+            <button
+              key={h}
+              type="button"
+              onClick={() => setHours(h.toString())}
+              style={{
+                padding: '6px 12px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+                background: hours === h.toString() ? theme.accent1 : `${theme.accent1}15`,
+                color: hours === h.toString() ? '#fff' : theme.accent1,
+                border: `1px solid ${hours === h.toString() ? theme.accent1 : theme.accent1 + '30'}`,
+                cursor: 'pointer', transition: 'all 0.2s'
+              }}
+              onMouseEnter={e => {
+                if (hours !== h.toString()) {
+                  e.currentTarget.style.background = `${theme.accent1}30`;
+                }
+              }}
+              onMouseLeave={e => {
+                if (hours !== h.toString()) {
+                  e.currentTarget.style.background = `${theme.accent1}15`;
+                }
+              }}
+            >
+              {formatHours(h)}
+            </button>
+          ))}
+        </div>
+        <input
+          type="text"
+          placeholder="или введите чч:мм"
+          value={hours}
+          onChange={(e) => setHours(e.target.value)}
+          style={{
+            width: '100%', padding: '8px 12px', borderRadius: 8, fontSize: 14,
+            border: `1px solid ${theme.borderPrimary}`, background: theme.bgCard,
+            color: theme.textPrimary, outline: 'none', transition: 'border-color 0.2s',
+            boxSizing: 'border-box', textAlign: 'center'
+          }}
+          onFocus={e => (e.currentTarget.style.borderColor = theme.accent1)}
+          onBlur={e => {
+            e.currentTarget.style.borderColor = theme.borderPrimary;
+            // Парсим любой формат времени
+            const parsed = parseTimeInput(hours);
+            if (parsed !== null && parsed > 0) {
+              setHours(parsed.toString());
+            }
+          }}
+        />
+        <div style={{ fontSize: 11, color: theme.textTertiary, marginTop: 4, textAlign: 'center' }}>
+          порог 15 минут
         </div>
       </div>
       <div>
