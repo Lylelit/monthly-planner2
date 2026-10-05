@@ -52,7 +52,7 @@ export default function TaskCard({ task, assignedHours, totalAssignedHours, onDr
             </span>
             {remaining > 0 && (
               <span style={{ fontSize: 12, color: theme.warning, fontWeight: 500 }}>
-                ({formatHours(remaining)} свободно)
+                ({formatHours(remaining)} не запланировано)
               </span>
             )}
             {remaining === 0 && (
