@@ -273,6 +273,9 @@ export default function DayColumn({ day, tasks, assignments, onDropTask, onRemov
                 
                 // Если перетаскиваем задачу внутри одного дня
                 if (draggedAssignmentId && draggedAssignmentId !== assignment.id) {
+                  // Сбрасываем showDropMenu, чтобы оно не оставалось висеть
+                  setShowDropMenu(false);
+                  
                   // Если это та же задача - пытаемся слить
                   if (draggedTaskId === task.id && onMergeAssignments) {
                     onMergeAssignments(draggedAssignmentId, assignment.id);

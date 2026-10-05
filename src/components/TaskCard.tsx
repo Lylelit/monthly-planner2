@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Task } from '../types';
 import { useTheme } from '../ThemeContext';
 import { formatHours } from '../utils/timeFormat';
@@ -18,12 +18,33 @@ interface Props {
 export default function TaskCard({ task, assignedHours, totalAssignedHours, onDragStart, onComplete, onEdit, onDelete, onReorder, index }: Props) {
   const { theme } = useTheme();
   const [dragOverPosition, setDragOverPosition] = useState<'above' | 'below' | null>(null);
+  const dragLeaveTimeout = useRef<number | null>(null);
   const remaining = task.totalHours - totalAssignedHours;
   const progress = totalAssignedHours / task.totalHours;
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
+    
+    // Проверяем что перетаскивается задача (не из другого дня)
+    const draggedTaskId = e.dataTransfer.getData('taskId');
+    const sourceDayId = e.dataTransfer.getData('sourceDayId');
+    
+    // Если перетаскивается задача из другого дня, не показываем индикатор
+    if (sourceDayId) {
+      return;
+    }
+    
+    // Если перетаскивается та же задача, не показываем индикатор
+    if (draggedTaskId === task.id) {
+      return;
+    }
+    
+    // Отменяем предыдущий таймер если он есть
+    if (dragLeaveTimeout.current) {
+      clearTimeout(dragLeaveTimeout.current);
+      dragLeaveTimeout.current = null;
+    }
     
     // Определяем позицию курсора относительно карточки
     const rect = e.currentTarget.getBoundingClientRect();
@@ -37,12 +58,33 @@ export default function TaskCard({ task, assignedHours, totalAssignedHours, onDr
   };
 
   const handleDragLeave = () => {
-    setDragOverPosition(null);
+    // Используем задержку, чтобы избежать моргания при быстрых пересечениях границы
+    if (dragLeaveTimeout.current) {
+      clearTimeout(dragLeaveTimeout.current);
+    }
+    dragLeaveTimeout.current = setTimeout(() => {
+      setDragOverPosition(null);
+    }, 50);
   };
+
+  // Очистка таймера при unmount
+  useEffect(() => {
+    return () => {
+      if (dragLeaveTimeout.current) {
+        clearTimeout(dragLeaveTimeout.current);
+      }
+    };
+  }, []);
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setDragOverPosition(null);
+    
+    // Отменяем таймер если он есть
+    if (dragLeaveTimeout.current) {
+      clearTimeout(dragLeaveTimeout.current);
+      dragLeaveTimeout.current = null;
+    }
     
     const draggedId = e.dataTransfer.getData('taskId');
     if (draggedId && draggedId !== task.id && onReorder) {
