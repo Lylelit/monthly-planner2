@@ -1,7 +1,7 @@
 export const themes = {
   light: {
     // Backgrounds
-    bgPrimary: '#ffffff',
+    bgPrimary: '#e8eef3',
     bgSecondary: '#f8fafc',
     bgTertiary: '#f1f5f9',
     bgCard: '#ffffff',
