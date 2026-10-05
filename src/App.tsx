@@ -7,6 +7,7 @@ import TaskCard from './components/TaskCard';
 import DayColumn from './components/DayColumn';
 import CompletedTasksList from './components/CompletedTasksList';
 import EditTaskModal from './components/EditTaskModal';
+import SearchFilter from './components/SearchFilter';
 import AuthScreen, { Profile } from './components/AuthScreen';
 import { loadTasks, loadAssignments, saveTasks, saveAssignments, setCurrentProfile } from './services/storageService';
 import { useTheme } from './ThemeContext';
@@ -31,6 +32,8 @@ function App() {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [showSidebar, setShowSidebar] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'new' | 'completed'>('all');
 
   const toggleHint = () => {
     const newState = !showHint;
@@ -249,6 +252,23 @@ function App() {
   const getTaskAssignedHours = (taskId: string) => {
     return assignments.filter((a) => a.taskId === taskId).reduce((sum, a) => sum + a.hours, 0);
   };
+
+  // Фильтрация задач для поиска
+  const filteredTasks = useMemo(() => {
+    return tasks.filter(task => {
+      // Фильтр по статусу
+      if (statusFilter === 'new' && task.status === 'completed') return false;
+      if (statusFilter === 'completed' && task.status !== 'completed') return false;
+      
+      // Фильтр по поисковому запросу
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        return task.title.toLowerCase().includes(query);
+      }
+      
+      return true;
+    });
+  }, [tasks, statusFilter, searchQuery]);
 
   const handleLogin = (profile: Profile) => {
     setCurrentUser(profile);
@@ -612,17 +632,25 @@ function App() {
             <TaskForm onAddTask={addTask} />
           </div>
 
+          {/* Поиск и фильтрация */}
+          <SearchFilter
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            statusFilter={statusFilter}
+            onStatusFilterChange={setStatusFilter}
+          />
+
           {/* Новые задачи */}
-          {tasks.filter(t => t.status !== 'completed').length > 0 && (
+          {filteredTasks.filter(t => t.status !== 'completed').length > 0 && (
             <div style={{
               background: theme.bgCard, borderRadius: 16, border: `1px solid ${theme.borderPrimary}`,
               padding: 16, boxShadow: theme.shadow
             }}>
               <h3 style={{ fontSize: 14, fontWeight: 600, color: theme.textPrimary, marginBottom: 12 }}>
-                Новые задачи ({tasks.filter(t => t.status !== 'completed').length})
+                Новые задачи ({filteredTasks.filter(t => t.status !== 'completed').length})
               </h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {tasks.filter(t => t.status !== 'completed').map((task, index) => (
+                {filteredTasks.filter(t => t.status !== 'completed').map((task, index) => (
                   <TaskCard
                     key={task.id}
                     task={task}
@@ -651,13 +679,13 @@ function App() {
 
           {/* Выполненные задачи */}
           <CompletedTasksList
-            tasks={tasks}
+            tasks={filteredTasks}
             assignments={assignments}
             days={weeks.flatMap(w => w.days)}
             onReturnToNew={returnToNew}
           />
 
-          {tasks.filter(t => t.status !== 'completed').length === 0 && tasks.filter(t => t.status === 'completed').length === 0 && (
+          {filteredTasks.filter(t => t.status !== 'completed').length === 0 && filteredTasks.filter(t => t.status === 'completed').length === 0 && (
             <div style={{
               background: theme.bgSecondary, borderRadius: 16, border: `1px solid ${theme.borderPrimary}`,
               padding: 24, textAlign: 'center'
