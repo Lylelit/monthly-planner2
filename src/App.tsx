@@ -133,7 +133,7 @@ function App() {
 
   const returnToNew = useCallback((taskId: string, additionalHours: number) => {
     setTasks((prev) => prev.map(t => 
-      t.id === taskId ? { ...t, status: 'new' as const, completedAt: undefined, totalHours: t.totalHours + additionalHours } : t
+      t.id === taskId ? { ...t, status: 'new' as const, completedAt: undefined, totalHours: additionalHours } : t
     ));
   }, []);
 
