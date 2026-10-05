@@ -303,17 +303,40 @@ function App() {
             )}
 
             {/* Theme toggle */}
-            <button onClick={toggleTheme} style={{
-              padding: 8, borderRadius: 8, border: `1px solid ${theme.borderPrimary}`,
-              background: theme.bgSecondary, color: theme.textSecondary,
-              cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: 4
-            }}
-              onMouseEnter={e => (e.currentTarget.style.background = theme.bgHover)}
-              onMouseLeave={e => (e.currentTarget.style.background = theme.bgSecondary)}
-            >
-              {mode === 'light' ? '🌙' : '☀️'}
-              <span style={{ fontSize: 12 }}>{mode === 'light' ? 'Тёмная' : 'Светлая'}</span>
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <svg width="16" height="16" fill="none" stroke={theme.textTertiary} viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="5"/>
+                <path strokeLinecap="round" d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72l1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+              </svg>
+              <button 
+                onClick={toggleTheme}
+                style={{
+                  width: 44,
+                  height: 24,
+                  borderRadius: 12,
+                  border: 'none',
+                  background: mode === 'dark' ? theme.accent1 : theme.bgTertiary,
+                  cursor: 'pointer',
+                  position: 'relative',
+                  transition: 'background 0.3s ease'
+                }}
+              >
+                <div style={{
+                  width: 18,
+                  height: 18,
+                  borderRadius: '50%',
+                  background: '#fff',
+                  position: 'absolute',
+                  top: 3,
+                  left: mode === 'dark' ? 23 : 3,
+                  transition: 'left 0.3s ease',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                }}/>
+              </button>
+              <svg width="16" height="16" fill="none" stroke={theme.textTertiary} viewBox="0 0 24 24">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+              </svg>
+            </div>
 
             {/* User info & logout */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -441,7 +464,9 @@ function App() {
               background: theme.bgSecondary, borderRadius: 16, border: `1px solid ${theme.borderPrimary}`,
               padding: 24, textAlign: 'center'
             }}>
-              <div style={{ fontSize: 32, marginBottom: 8 }}>📋</div>
+              <svg width="32" height="32" fill="none" stroke={theme.textTertiary} viewBox="0 0 24 24" style={{ marginBottom: 8 }}>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+              </svg>
               <p style={{ fontSize: 14, color: theme.textTertiary }}>Создайте первую задачу,<br/>чтобы начать планирование</p>
             </div>
           )}
@@ -465,7 +490,12 @@ function App() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
-              <h4 style={{ fontSize: 14, fontWeight: 600, color: theme.accent1, marginBottom: 8 }}>💡 Как пользоваться</h4>
+              <h4 style={{ fontSize: 14, fontWeight: 600, color: theme.accent1, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+                </svg>
+                Как пользоваться
+              </h4>
               <ul style={{ fontSize: 12, color: theme.textSecondary, listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
                 <li>• <b>Создайте задачу</b> слева с оценкой в часах</li>
                 <li>• <b>Перетащите</b> задачу на любой день — появится выбор часов</li>
@@ -493,7 +523,9 @@ function App() {
 
           {weeks.length === 0 && (
             <div style={{ textAlign: 'center', padding: '80px 0', color: theme.textTertiary }}>
-              <div style={{ fontSize: 40, marginBottom: 16 }}>📅</div>
+              <svg width="40" height="40" fill="none" stroke={theme.textTertiary} viewBox="0 0 24 24" style={{ marginBottom: 16 }}>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+              </svg>
               <p>Нет рабочих дней в этом месяце</p>
             </div>
           )}
@@ -507,7 +539,9 @@ function App() {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, color: theme.textTertiary }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span>📅</span>
+            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+            </svg>
             <span>Месячный планировщик задач</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>

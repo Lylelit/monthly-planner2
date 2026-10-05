@@ -55,7 +55,9 @@ export default function TaskCard({ task, assignedHours, totalAssignedHours, onDr
               </span>
             )}
             {remaining === 0 && (
-              <span style={{ fontSize: 12, color: theme.success, fontWeight: 500 }}>✓</span>
+              <svg width="14" height="14" fill="none" stroke={theme.success} viewBox="0 0 24 24" style={{ display: 'inline', verticalAlign: 'middle' }}>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7"/>
+              </svg>
             )}
           </div>
         </div>
