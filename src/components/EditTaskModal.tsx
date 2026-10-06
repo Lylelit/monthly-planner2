@@ -20,6 +20,8 @@ export default function EditTaskModal({ task, onSave, onCancel }: Props) {
   const [title, setTitle] = useState(task.title);
   const [hours, setHours] = useState(task.totalHours.toString());
   const [color, setColor] = useState(task.color);
+  const [description, setDescription] = useState(task.description || '');
+  const [link, setLink] = useState(task.link || '');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,6 +33,8 @@ export default function EditTaskModal({ task, onSave, onCancel }: Props) {
       title: title.trim(),
       totalHours: parsedHours,
       color,
+      description: description.trim() || undefined,
+      link: link.trim() || undefined,
     });
   };
 
@@ -115,7 +119,7 @@ export default function EditTaskModal({ task, onSave, onCancel }: Props) {
             </div>
           </div>
 
-          <div style={{ marginBottom: 24 }}>
+          <div style={{ marginBottom: 16 }}>
             <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: theme.textSecondary, marginBottom: 8 }}>
               Цвет
             </label>
@@ -134,6 +138,45 @@ export default function EditTaskModal({ task, onSave, onCancel }: Props) {
                 />
               ))}
             </div>
+          </div>
+
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: theme.textSecondary, marginBottom: 8 }}>
+              Описание
+            </label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Описание задачи..."
+              rows={3}
+              style={{
+                width: '100%', padding: '10px 12px', borderRadius: 8, fontSize: 14,
+                border: `1px solid ${theme.borderPrimary}`, background: theme.bgSecondary,
+                color: theme.textPrimary, outline: 'none', boxSizing: 'border-box',
+                resize: 'vertical', fontFamily: 'inherit'
+              }}
+              onFocus={e => e.currentTarget.style.borderColor = theme.accent1}
+              onBlur={e => e.currentTarget.style.borderColor = theme.borderPrimary}
+            />
+          </div>
+
+          <div style={{ marginBottom: 24 }}>
+            <label style={{ display: 'block', fontSize: 14, fontWeight: 500, color: theme.textSecondary, marginBottom: 8 }}>
+              Ссылка
+            </label>
+            <input
+              type="url"
+              value={link}
+              onChange={(e) => setLink(e.target.value)}
+              placeholder="https://..."
+              style={{
+                width: '100%', padding: '10px 12px', borderRadius: 8, fontSize: 14,
+                border: `1px solid ${theme.borderPrimary}`, background: theme.bgSecondary,
+                color: theme.textPrimary, outline: 'none', boxSizing: 'border-box'
+              }}
+              onFocus={e => e.currentTarget.style.borderColor = theme.accent1}
+              onBlur={e => e.currentTarget.style.borderColor = theme.borderPrimary}
+            />
           </div>
 
           <div style={{ display: 'flex', gap: 8 }}>

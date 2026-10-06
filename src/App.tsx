@@ -8,7 +8,9 @@ import DayColumn from './components/DayColumn';
 import CompletedTasksList from './components/CompletedTasksList';
 import EditTaskModal from './components/EditTaskModal';
 import SearchFilter from './components/SearchFilter';
+import ExportModal from './components/ExportModal';
 import AuthScreen, { Profile } from './components/AuthScreen';
+import { exportToExcel } from './utils/excelExport';
 import { loadTasks, loadAssignments, saveTasks, saveAssignments, setCurrentProfile } from './services/storageService';
 import { useTheme } from './ThemeContext';
 
@@ -34,6 +36,7 @@ function App() {
   const [showSidebar, setShowSidebar] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'new' | 'completed'>('all');
+  const [showExportModal, setShowExportModal] = useState(false);
 
   const toggleHint = () => {
     const newState = !showHint;
@@ -42,6 +45,17 @@ function App() {
       localStorage.setItem('planner-hint-dismissed', 'true');
     } else {
       localStorage.removeItem('planner-hint-dismissed');
+    }
+  };
+
+  const handleExport = async (startDate: string, endDate: string) => {
+    console.log('Starting export...', { startDate, endDate, tasksCount: tasks.length, assignmentsCount: assignments.length });
+    try {
+      await exportToExcel(tasks, assignments, startDate, endDate);
+      setShowExportModal(false);
+    } catch (error) {
+      console.error('Export error:', error);
+      alert('Ошибка при экспорте: ' + (error as Error).message);
     }
   };
 
@@ -354,7 +368,7 @@ function App() {
                 </svg>
               </div>
               {!isMobile && (
-                <h1 style={{ fontSize: 18, fontWeight: 700, color: theme.textPrimary, margin: 0 }}>Месячный планировщик</h1>
+                <h1 style={{ fontSize: 18, fontWeight: 700, color: theme.textPrimary, margin: 0 }}>Твой планировщик</h1>
               )}
             </div>
           </div>
@@ -435,6 +449,23 @@ function App() {
                 </svg>
               </button>
             )}
+
+            {/* Export button */}
+            <button 
+              onClick={() => setShowExportModal(true)}
+              style={{
+                padding: 8, borderRadius: 8, border: `1px solid ${theme.borderPrimary}`,
+                background: theme.bgSecondary, color: theme.textSecondary,
+                cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center'
+              }}
+              onMouseEnter={e => (e.currentTarget.style.background = theme.bgHover)}
+              onMouseLeave={e => (e.currentTarget.style.background = theme.bgSecondary)}
+              title="Экспорт в Excel"
+            >
+              <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </button>
 
             {/* Theme toggle */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -769,6 +800,14 @@ function App() {
           task={editingTask}
           onSave={editTask}
           onCancel={() => setEditingTask(null)}
+        />
+      )}
+
+      {/* Export Modal */}
+      {showExportModal && (
+        <ExportModal
+          onClose={() => setShowExportModal(false)}
+          onExport={handleExport}
         />
       )}
 

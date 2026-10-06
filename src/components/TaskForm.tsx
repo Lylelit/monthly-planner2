@@ -35,7 +35,14 @@ export default function TaskForm({ onAddTask }: Props) {
     const parsedHours = parseTimeInput(hours);
     if (parsedHours === null || parsedHours <= 0) return;
     
-    const task: Task = { id: generateId(), title: title.trim(), totalHours: parsedHours, color };
+    const task: Task = { 
+      id: generateId(), 
+      title: title.trim(), 
+      totalHours: parsedHours, 
+      color,
+      status: 'new',
+      createdAt: new Date().toISOString()
+    };
     onAddTask(task);
     setTitle('');
     setHours('');

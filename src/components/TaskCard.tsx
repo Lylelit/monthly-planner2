@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Task } from '../types';
 import { useTheme } from '../ThemeContext';
 import { formatHours } from '../utils/timeFormat';
+import TaskDetailsModal from './TaskDetailsModal';
 
 interface Props {
   task: Task;
@@ -18,7 +19,8 @@ interface Props {
 export default function TaskCard({ task, assignedHours, totalAssignedHours, onDragStart, onComplete, onEdit, onDelete, onReorder, index }: Props) {
   const { theme } = useTheme();
   const [dragOverPosition, setDragOverPosition] = useState<'above' | 'below' | null>(null);
-  const dragLeaveTimeout = useRef<number | null>(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const dragLeaveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const remaining = task.totalHours - totalAssignedHours;
   const progress = totalAssignedHours / task.totalHours;
 
@@ -101,6 +103,7 @@ export default function TaskCard({ task, assignedHours, totalAssignedHours, onDr
       
       <div
         draggable
+        onClick={() => setShowDetailsModal(true)}
         onDragStart={(e) => {
           e.dataTransfer.setData('taskId', task.id);
           e.dataTransfer.effectAllowed = 'move';
@@ -111,7 +114,7 @@ export default function TaskCard({ task, assignedHours, totalAssignedHours, onDr
         onDrop={handleDrop}
       style={{
         position: 'relative', borderRadius: 10, padding: 12,
-        cursor: 'grab', border: `1px solid ${theme.borderPrimary}`,
+        cursor: 'pointer', border: `1px solid ${theme.borderPrimary}`,
         background: theme.bgCard, transition: 'all 0.2s',
         borderLeft: `4px solid ${task.color}`,
         boxShadow: theme.shadow
@@ -150,7 +153,10 @@ export default function TaskCard({ task, assignedHours, totalAssignedHours, onDr
           className="task-card-actions"
         >
           <button
-            onClick={() => onEdit(task)}
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit(task);
+            }}
             style={{
               padding: 4, borderRadius: 6, border: 'none', cursor: 'pointer',
               background: 'transparent', color: theme.textTertiary, transition: 'all 0.2s'
@@ -164,7 +170,10 @@ export default function TaskCard({ task, assignedHours, totalAssignedHours, onDr
             </svg>
           </button>
           <button
-            onClick={() => onComplete(task.id)}
+            onClick={(e) => {
+              e.stopPropagation();
+              onComplete(task.id);
+            }}
             style={{
               padding: 4, borderRadius: 6, border: 'none', cursor: 'pointer',
               background: 'transparent', color: theme.textTertiary, transition: 'all 0.2s'
@@ -178,7 +187,10 @@ export default function TaskCard({ task, assignedHours, totalAssignedHours, onDr
             </svg>
           </button>
           <button
-            onClick={() => onDelete(task.id)}
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(task.id);
+            }}
             style={{
               padding: 4, borderRadius: 6, border: 'none', cursor: 'pointer',
               background: 'transparent', color: theme.textTertiary, transition: 'all 0.2s'
@@ -207,6 +219,19 @@ export default function TaskCard({ task, assignedHours, totalAssignedHours, onDr
       {/* Placeholder below */}
       {dragOverPosition === 'below' && (
         <div className="drag-placeholder drag-placeholder-below" />
+      )}
+      
+      {/* Модальное окно просмотра деталей */}
+      {showDetailsModal && (
+        <TaskDetailsModal
+          task={task}
+          assignedHours={assignedHours}
+          onClose={() => setShowDetailsModal(false)}
+          onEdit={() => {
+            setShowDetailsModal(false);
+            onEdit(task);
+          }}
+        />
       )}
     </div>
   );

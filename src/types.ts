@@ -4,7 +4,9 @@ export interface Task {
   totalHours: number;
   color: string;
   description?: string;
+  link?: string;
   status?: 'new' | 'completed';
+  createdAt?: string;
   completedAt?: string;
 }
 
