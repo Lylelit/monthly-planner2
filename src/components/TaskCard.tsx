@@ -103,6 +103,7 @@ export default function TaskCard({ task, assignedHours, totalAssignedHours, onDr
       
       <div
         draggable
+        onClick={() => setShowDetailsModal(true)}
         onDragStart={(e) => {
           e.dataTransfer.setData('taskId', task.id);
           e.dataTransfer.effectAllowed = 'move';
@@ -113,7 +114,7 @@ export default function TaskCard({ task, assignedHours, totalAssignedHours, onDr
         onDrop={handleDrop}
       style={{
         position: 'relative', borderRadius: 10, padding: 12,
-        cursor: 'grab', border: `1px solid ${theme.borderPrimary}`,
+        cursor: 'pointer', border: `1px solid ${theme.borderPrimary}`,
         background: theme.bgCard, transition: 'all 0.2s',
         borderLeft: `4px solid ${task.color}`,
         boxShadow: theme.shadow
@@ -146,46 +147,16 @@ export default function TaskCard({ task, assignedHours, totalAssignedHours, onDr
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7"/>
               </svg>
             )}
-            {(task.description || task.link) && (
-              <div style={{ display: 'flex', gap: 4, marginLeft: 'auto' }}>
-                {task.description && (
-                  <div title="Есть описание">
-                    <svg width="12" height="12" fill="none" stroke={theme.textTertiary} viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                    </svg>
-                  </div>
-                )}
-                {task.link && (
-                  <div title="Есть ссылка">
-                    <svg width="12" height="12" fill="none" stroke={theme.textTertiary} viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
-                    </svg>
-                  </div>
-                )}
-              </div>
-            )}
           </div>
         </div>
         <div style={{ display: 'flex', gap: 2, opacity: 0, transition: 'opacity 0.2s' }}
           className="task-card-actions"
         >
           <button
-            onClick={() => setShowDetailsModal(true)}
-            style={{
-              padding: 4, borderRadius: 6, border: 'none', cursor: 'pointer',
-              background: 'transparent', color: theme.textTertiary, transition: 'all 0.2s'
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit(task);
             }}
-            onMouseEnter={e => { e.currentTarget.style.background = theme.accent1; e.currentTarget.style.color = '#fff'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = theme.textTertiary; }}
-            title="Просмотреть детали"
-          >
-            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-            </svg>
-          </button>
-          <button
-            onClick={() => onEdit(task)}
             style={{
               padding: 4, borderRadius: 6, border: 'none', cursor: 'pointer',
               background: 'transparent', color: theme.textTertiary, transition: 'all 0.2s'
@@ -199,7 +170,10 @@ export default function TaskCard({ task, assignedHours, totalAssignedHours, onDr
             </svg>
           </button>
           <button
-            onClick={() => onComplete(task.id)}
+            onClick={(e) => {
+              e.stopPropagation();
+              onComplete(task.id);
+            }}
             style={{
               padding: 4, borderRadius: 6, border: 'none', cursor: 'pointer',
               background: 'transparent', color: theme.textTertiary, transition: 'all 0.2s'
@@ -213,7 +187,10 @@ export default function TaskCard({ task, assignedHours, totalAssignedHours, onDr
             </svg>
           </button>
           <button
-            onClick={() => onDelete(task.id)}
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(task.id);
+            }}
             style={{
               padding: 4, borderRadius: 6, border: 'none', cursor: 'pointer',
               background: 'transparent', color: theme.textTertiary, transition: 'all 0.2s'
