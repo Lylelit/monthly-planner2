@@ -6,6 +6,7 @@ export interface Task {
   description?: string;
   link?: string;
   status?: 'new' | 'completed';
+  createdAt?: string;
   completedAt?: string;
 }
 

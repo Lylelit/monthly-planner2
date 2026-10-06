@@ -20,7 +20,7 @@ export default function TaskCard({ task, assignedHours, totalAssignedHours, onDr
   const { theme } = useTheme();
   const [dragOverPosition, setDragOverPosition] = useState<'above' | 'below' | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const dragLeaveTimeout = useRef<number | null>(null);
+  const dragLeaveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const remaining = task.totalHours - totalAssignedHours;
   const progress = totalAssignedHours / task.totalHours;
 
