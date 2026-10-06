@@ -22,15 +22,24 @@ export async function exportToExcel(
   startDate: string,
   endDate: string
 ) {
+  console.log('exportToExcel called with:', { tasks, assignments, startDate, endDate });
+  
   // Фильтруем задачи по периоду завершения
   const filteredTasks = tasks.filter(task => {
-    if (task.status !== 'completed' || !task.completedAt) return false;
+    if (task.status !== 'completed' || !task.completedAt) {
+      console.log('Task filtered out (not completed or no completedAt):', task);
+      return false;
+    }
     const completedDate = new Date(task.completedAt);
     const start = new Date(startDate);
     const end = new Date(endDate);
     end.setHours(23, 59, 59, 999); // Включаем весь последний день
-    return completedDate >= start && completedDate <= end;
+    const isInPeriod = completedDate >= start && completedDate <= end;
+    console.log('Task date check:', { task: task.title, completedAt: task.completedAt, isInPeriod });
+    return isInPeriod;
   });
+
+  console.log('Filtered tasks:', filteredTasks);
 
   if (filteredTasks.length === 0) {
     alert('Нет выполненных задач за выбранный период');
@@ -125,10 +134,14 @@ export async function exportToExcel(
   });
 
   // Генерируем файл
+  console.log('Generating Excel file...');
   const buffer = await workbook.xlsx.writeBuffer();
+  console.log('Buffer generated, size:', buffer.byteLength);
+  
   const blob = new Blob([buffer], {
     type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
   });
+  console.log('Blob created, size:', blob.size);
 
   // Скачиваем файл
   const url = window.URL.createObjectURL(blob);
@@ -139,6 +152,7 @@ export async function exportToExcel(
   link.click();
   document.body.removeChild(link);
   window.URL.revokeObjectURL(url);
+  console.log('File download initiated');
 }
 
 // Функция для определения яркости цвета

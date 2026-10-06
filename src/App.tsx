@@ -49,12 +49,13 @@ function App() {
   };
 
   const handleExport = async (startDate: string, endDate: string) => {
+    console.log('Starting export...', { startDate, endDate, tasksCount: tasks.length, assignmentsCount: assignments.length });
     try {
       await exportToExcel(tasks, assignments, startDate, endDate);
       setShowExportModal(false);
     } catch (error) {
       console.error('Export error:', error);
-      alert('Ошибка при экспорте');
+      alert('Ошибка при экспорте: ' + (error as Error).message);
     }
   };
 
