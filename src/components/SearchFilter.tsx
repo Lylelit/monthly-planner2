@@ -46,7 +46,7 @@ export default function SearchFilter({
             <circle cx="11" cy="11" r="8" />
             <path strokeLinecap="round" d="M21 21l-4.35-4.35" />
           </svg>
-          <span style={{ fontSize: 14, fontWeight: 600 }}>Поиск и фильтр</span>
+          <span style={{ fontSize: 14, fontWeight: 600 }}>Поиск по задачам</span>
           {searchQuery && (
             <span style={{
               fontSize: 11,
