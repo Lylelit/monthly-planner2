@@ -224,11 +224,30 @@ function App() {
         }
       });
       
-      // Определяем месяц ближайшей недели
+      // Определяем месяц ближайшей недели по большинству дней
       if (closestWeek) {
-        const firstDay = new Date(closestWeek.days[0].date);
-        const month = firstDay.getMonth();
-        const year = firstDay.getFullYear();
+        // Считаем сколько дней из недели принадлежит каждому месяцу
+        const monthCounts: Record<string, number> = {};
+        closestWeek.days.forEach(day => {
+          const dayDate = new Date(day.date);
+          const key = `${dayDate.getFullYear()}-${dayDate.getMonth()}`;
+          monthCounts[key] = (monthCounts[key] || 0) + 1;
+        });
+        
+        // Находим месяц с максимальным количеством дней
+        let maxMonth = '';
+        let maxCount = 0;
+        Object.entries(monthCounts).forEach(([key, count]) => {
+          if (count > maxCount) {
+            maxCount = count;
+            maxMonth = key;
+          }
+        });
+        
+        // Парсим год и месяц
+        const [yearStr, monthStr] = maxMonth.split('-');
+        const year = parseInt(yearStr);
+        const month = parseInt(monthStr);
         
         // Обновляем видимый месяц если он изменился
         if (month !== visibleMonth.month || year !== visibleMonth.year) {
@@ -933,9 +952,25 @@ function App() {
                 return dayDate.toDateString() === today.toDateString();
               });
               
-              // Проверяем принадлежит ли неделя активному месяцу
-              const firstDay = new Date(week.days[0].date);
-              const isActiveMonth = firstDay.getMonth() === visibleMonth.month && firstDay.getFullYear() === visibleMonth.year;
+              // Проверяем принадлежит ли неделя активному месяцу (по большинству дней)
+              const monthCounts: Record<string, number> = {};
+              week.days.forEach(day => {
+                const dayDate = new Date(day.date);
+                const key = `${dayDate.getFullYear()}-${dayDate.getMonth()}`;
+                monthCounts[key] = (monthCounts[key] || 0) + 1;
+              });
+              
+              let dominantMonth = '';
+              let maxCount = 0;
+              Object.entries(monthCounts).forEach(([key, count]) => {
+                if (count > maxCount) {
+                  maxCount = count;
+                  dominantMonth = key;
+                }
+              });
+              
+              const [yearStr, monthStr] = dominantMonth.split('-');
+              const isActiveMonth = parseInt(yearStr) === visibleMonth.year && parseInt(monthStr) === visibleMonth.month;
               
               return (
                 <div key={week.id} id={`week-${week.id}`} ref={isCurrentWeek ? currentWeekRef : null}>
