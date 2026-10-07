@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { Task, TaskAssignment, Week } from './types';
 import { getMonthWeeks, getMonthName, generateId, HOURS_PER_DAY } from './utils/dateUtils';
 import { formatHours } from './utils/timeFormat';
@@ -121,7 +121,64 @@ function App() {
   useEffect(() => { if (!isLoading && currentUser) saveTasks(tasks); }, [tasks, isLoading, currentUser]);
   useEffect(() => { if (!isLoading && currentUser) saveAssignments(assignments); }, [assignments, isLoading, currentUser]);
 
-  const weeks = useMemo(() => getMonthWeeks(currentYear, currentMonth), [currentYear, currentMonth]);
+  const weeksContainerRef = useRef<HTMLDivElement>(null);
+  const currentWeekRef = useRef<HTMLDivElement>(null);
+
+  // Загружаем недели из 3 месяцев: предыдущий, текущий, следующий
+  const weeks = useMemo(() => {
+    // Вычисляем предыдущий и следующий месяцы
+    const prevMonthDate = new Date(currentYear, currentMonth - 1, 1);
+    const nextMonthDate = new Date(currentYear, currentMonth + 1, 1);
+    
+    const prevMonthWeeks = getMonthWeeks(prevMonthDate.getFullYear(), prevMonthDate.getMonth());
+    const currentMonthWeeks = getMonthWeeks(currentYear, currentMonth);
+    const nextMonthWeeks = getMonthWeeks(nextMonthDate.getFullYear(), nextMonthDate.getMonth());
+    
+    // Объединяем все недели
+    const allWeeks = [...prevMonthWeeks, ...currentMonthWeeks, ...nextMonthWeeks];
+    
+    // Находим текущую неделю (неделю с сегодняшней датой)
+    const today = new Date();
+    const currentWeekIndex = allWeeks.findIndex(week => {
+      return week.days.some(day => {
+        const dayDate = new Date(day.date);
+        return dayDate.toDateString() === today.toDateString();
+      });
+    });
+    
+    // Если нашли текущую неделю, перестраиваем массив так, чтобы она была второй
+    if (currentWeekIndex !== -1) {
+      // Берём недели до текущей (включая предыдущий месяц)
+      const weeksBefore = allWeeks.slice(0, currentWeekIndex);
+      // Текущая неделя
+      const currentWeek = allWeeks[currentWeekIndex];
+      // Недели после текущей
+      const weeksAfter = allWeeks.slice(currentWeekIndex + 1);
+      
+      // Собираем: все недели до текущей, текущая неделя (вторая позиция), все недели после
+      return [...weeksBefore, currentWeek, ...weeksAfter];
+    }
+    
+    return allWeeks;
+  }, [currentYear, currentMonth]);
+
+  // Автоматический скролл к текущей неделе при загрузке
+  useEffect(() => {
+    if (currentWeekRef.current && weeksContainerRef.current) {
+      const container = weeksContainerRef.current;
+      const weekElement = currentWeekRef.current;
+      const containerRect = container.getBoundingClientRect();
+      const weekRect = weekElement.getBoundingClientRect();
+      
+      // Вычисляем позицию для скролла (текущая неделя должна быть второй сверху)
+      const scrollTop = weekRect.top - containerRect.top + container.scrollTop - 20;
+      
+      container.scrollTo({
+        top: scrollTop,
+        behavior: 'smooth'
+      });
+    }
+  }, [weeks, isLoading]);
 
   const prevMonth = () => {
     if (currentMonth === 0) { setCurrentMonth(11); setCurrentYear(currentYear - 1); }
@@ -763,24 +820,115 @@ function App() {
             </div>
           )}
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {weeks.map((week) => (
-              <WeekRow
-                key={week.id}
-                week={week}
-                tasks={tasks}
-                assignments={assignments}
-                dayStatuses={dayStatuses}
-                onDropTask={dropTask}
-                onRemoveAssignment={removeAssignment}
-                onSplitAssignment={splitAssignment}
-                onMoveAssignment={moveAssignment}
-                onSetDayStatus={setDayStatus}
-                onReorderAssignment={reorderAssignment}
-                onMergeAssignments={mergeAssignments}
-                isMobile={isMobile}
-              />
-            ))}
+          {/* Контейнер с прокруткой для недель */}
+          <div 
+            ref={weeksContainerRef}
+            style={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              gap: 16,
+              maxHeight: 'calc(100vh - 200px)',
+              overflowY: 'auto',
+              paddingRight: 8
+            }}
+          >
+            {weeks.map((week, index) => {
+              // Проверяем является ли эта неделя текущей
+              const today = new Date();
+              const isCurrentWeek = week.days.some(day => {
+                const dayDate = new Date(day.date);
+                return dayDate.toDateString() === today.toDateString();
+              });
+              
+              // Проверяем нужно ли показать разделитель месяца
+              const prevWeek = index > 0 ? weeks[index - 1] : null;
+              const showMonthDivider = prevWeek && 
+                new Date(week.days[0].date).getMonth() !== new Date(prevWeek.days[0].date).getMonth();
+              
+              const monthName = getMonthName(new Date(week.days[0].date).getMonth());
+              const year = new Date(week.days[0].date).getFullYear();
+              
+              return (
+                <div key={week.id} style={{ display: 'contents' }}>
+                  {/* Разделитель месяца */}
+                  {showMonthDivider && (
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 12,
+                      margin: '8px 0'
+                    }}>
+                      <div style={{
+                        flex: 1,
+                        height: 1,
+                        background: theme.borderPrimary
+                      }} />
+                      <span style={{
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: theme.textTertiary,
+                        textTransform: 'capitalize'
+                      }}>
+                        {monthName} {year}
+                      </span>
+                      <div style={{
+                        flex: 1,
+                        height: 1,
+                        background: theme.borderPrimary
+                      }} />
+                    </div>
+                  )}
+                  
+                  {/* Первая неделя (если это начало списка) */}
+                  {index === 0 && (
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 12,
+                      margin: '8px 0'
+                    }}>
+                      <div style={{
+                        flex: 1,
+                        height: 1,
+                        background: theme.borderPrimary
+                      }} />
+                      <span style={{
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: theme.textTertiary,
+                        textTransform: 'capitalize'
+                      }}>
+                        {monthName} {year}
+                      </span>
+                      <div style={{
+                        flex: 1,
+                        height: 1,
+                        background: theme.borderPrimary
+                      }} />
+                    </div>
+                  )}
+                  
+                  {/* Неделя */}
+                  <div ref={isCurrentWeek ? currentWeekRef : null}>
+                    <WeekRow
+                      week={week}
+                      tasks={tasks}
+                      assignments={assignments}
+                      dayStatuses={dayStatuses}
+                      onDropTask={dropTask}
+                      onRemoveAssignment={removeAssignment}
+                      onSplitAssignment={splitAssignment}
+                      onMoveAssignment={moveAssignment}
+                      onSetDayStatus={setDayStatus}
+                      onReorderAssignment={reorderAssignment}
+                      onMergeAssignments={mergeAssignments}
+                      isMobile={isMobile}
+                      isCurrentWeek={isCurrentWeek}
+                    />
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
           {weeks.length === 0 && (
@@ -855,11 +1003,20 @@ interface WeekRowProps {
   onReorderAssignment?: (sourceId: string, targetId: string) => void;
   onMergeAssignments?: (sourceId: string, targetId: string) => void;
   isMobile: boolean;
+  isCurrentWeek?: boolean;
 }
 
-function WeekRow({ week, tasks, assignments, dayStatuses, onDropTask, onRemoveAssignment, onSplitAssignment, onMoveAssignment, onSetDayStatus, onReorderAssignment, onMergeAssignments, isMobile }: WeekRowProps & { isMobile: boolean }) {
+function WeekRow({ week, tasks, assignments, dayStatuses, onDropTask, onRemoveAssignment, onSplitAssignment, onMoveAssignment, onSetDayStatus, onReorderAssignment, onMergeAssignments, isMobile, isCurrentWeek }: WeekRowProps & { isMobile: boolean }) {
+  const { theme } = useTheme();
+  
   return (
-    <div>
+    <div style={{
+      padding: isCurrentWeek ? 8 : 0,
+      background: isCurrentWeek ? `${theme.accent1}08` : 'transparent',
+      borderRadius: 12,
+      border: isCurrentWeek ? `2px solid ${theme.accent1}30` : 'none',
+      transition: 'all 0.3s ease'
+    }}>
       <div style={{
         display: isMobile ? 'flex' : 'grid',
         gridTemplateColumns: isMobile ? undefined : 'repeat(5, 1fr)',
