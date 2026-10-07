@@ -952,26 +952,6 @@ function App() {
                 return dayDate.toDateString() === today.toDateString();
               });
               
-              // Проверяем принадлежит ли неделя активному месяцу (по большинству дней)
-              const monthCounts: Record<string, number> = {};
-              week.days.forEach(day => {
-                const dayDate = new Date(day.date);
-                const key = `${dayDate.getFullYear()}-${dayDate.getMonth()}`;
-                monthCounts[key] = (monthCounts[key] || 0) + 1;
-              });
-              
-              let dominantMonth = '';
-              let maxCount = 0;
-              Object.entries(monthCounts).forEach(([key, count]) => {
-                if (count > maxCount) {
-                  maxCount = count;
-                  dominantMonth = key;
-                }
-              });
-              
-              const [yearStr, monthStr] = dominantMonth.split('-');
-              const isActiveMonth = parseInt(yearStr) === visibleMonth.year && parseInt(monthStr) === visibleMonth.month;
-              
               return (
                 <div key={week.id} id={`week-${week.id}`} ref={isCurrentWeek ? currentWeekRef : null}>
                   <WeekRow
@@ -988,7 +968,7 @@ function App() {
                     onMergeAssignments={mergeAssignments}
                     isMobile={isMobile}
                     isCurrentWeek={isCurrentWeek}
-                    isActiveMonth={isActiveMonth}
+                    visibleMonth={visibleMonth}
                   />
                 </div>
               );
@@ -1068,10 +1048,10 @@ interface WeekRowProps {
   onMergeAssignments?: (sourceId: string, targetId: string) => void;
   isMobile: boolean;
   isCurrentWeek?: boolean;
-  isActiveMonth?: boolean;
+  visibleMonth: { month: number; year: number };
 }
 
-function WeekRow({ week, tasks, assignments, dayStatuses, onDropTask, onRemoveAssignment, onSplitAssignment, onMoveAssignment, onSetDayStatus, onReorderAssignment, onMergeAssignments, isMobile, isCurrentWeek, isActiveMonth }: WeekRowProps & { isMobile: boolean }) {
+function WeekRow({ week, tasks, assignments, dayStatuses, onDropTask, onRemoveAssignment, onSplitAssignment, onMoveAssignment, onSetDayStatus, onReorderAssignment, onMergeAssignments, isMobile, isCurrentWeek, visibleMonth }: WeekRowProps & { isMobile: boolean }) {
   const { theme } = useTheme();
   
   return (
@@ -1088,23 +1068,29 @@ function WeekRow({ week, tasks, assignments, dayStatuses, onDropTask, onRemoveAs
         flexDirection: isMobile ? 'column' : undefined,
         gap: isMobile ? 8 : 12
       }}>
-        {week.days.map((day) => (
-          <DayColumn
-            key={day.id}
-            day={{ ...day, status: dayStatuses[day.id] || 'working' }}
-            tasks={tasks}
-            assignments={assignments}
-            onDropTask={onDropTask}
-            onRemoveAssignment={onRemoveAssignment}
-            onSplitAssignment={onSplitAssignment}
-            onMoveAssignment={onMoveAssignment}
-            onSetDayStatus={onSetDayStatus}
-            onReorderAssignment={onReorderAssignment}
-            onMergeAssignments={onMergeAssignments}
-            isMobile={isMobile}
-            isActiveMonth={isActiveMonth}
-          />
-        ))}
+        {week.days.map((day) => {
+          // Определяем активность каждого дня динамически
+          const dayDate = new Date(day.date);
+          const isDayInActiveMonth = dayDate.getMonth() === visibleMonth.month && dayDate.getFullYear() === visibleMonth.year;
+          
+          return (
+            <DayColumn
+              key={day.id}
+              day={{ ...day, status: dayStatuses[day.id] || 'working' }}
+              tasks={tasks}
+              assignments={assignments}
+              onDropTask={onDropTask}
+              onRemoveAssignment={onRemoveAssignment}
+              onSplitAssignment={onSplitAssignment}
+              onMoveAssignment={onMoveAssignment}
+              onSetDayStatus={onSetDayStatus}
+              onReorderAssignment={onReorderAssignment}
+              onMergeAssignments={onMergeAssignments}
+              isMobile={isMobile}
+              isActiveMonth={isDayInActiveMonth}
+            />
+          );
+        })}
       </div>
     </div>
   );
