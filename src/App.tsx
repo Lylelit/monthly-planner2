@@ -164,19 +164,39 @@ function App() {
 
   // Автоматический скролл к текущей неделе при загрузке
   useEffect(() => {
-    if (currentWeekRef.current && weeksContainerRef.current) {
-      const container = weeksContainerRef.current;
-      const weekElement = currentWeekRef.current;
-      const containerRect = container.getBoundingClientRect();
-      const weekRect = weekElement.getBoundingClientRect();
+    if (!isLoading && weeks.length > 0) {
+      // Небольшая задержка для гарантии, что DOM полностью отрендерился
+      const timer = setTimeout(() => {
+        if (currentWeekRef.current && weeksContainerRef.current) {
+          const container = weeksContainerRef.current;
+          const weekElement = currentWeekRef.current;
+          
+          // Получаем позицию элемента относительно контейнера
+          const containerRect = container.getBoundingClientRect();
+          const weekRect = weekElement.getBoundingClientRect();
+          
+          console.log('Scrolling to current week:', {
+            containerTop: containerRect.top,
+            weekTop: weekRect.top,
+            containerScrollTop: container.scrollTop
+          });
+          
+          // Вычисляем позицию для скролла (текущая неделя должна быть второй сверху)
+          const scrollTop = weekRect.top - containerRect.top + container.scrollTop - 20;
+          
+          container.scrollTo({
+            top: scrollTop,
+            behavior: 'smooth'
+          });
+        } else {
+          console.warn('Refs not ready:', {
+            hasCurrentWeekRef: !!currentWeekRef.current,
+            hasContainerRef: !!weeksContainerRef.current
+          });
+        }
+      }, 200);
       
-      // Вычисляем позицию для скролла (текущая неделя должна быть второй сверху)
-      const scrollTop = weekRect.top - containerRect.top + container.scrollTop - 20;
-      
-      container.scrollTo({
-        top: scrollTop,
-        behavior: 'smooth'
-      });
+      return () => clearTimeout(timer);
     }
   }, [weeks, isLoading]);
 
@@ -832,7 +852,7 @@ function App() {
               paddingRight: 8
             }}
           >
-            {weeks.map((week, index) => {
+            {weeks.map((week) => {
               // Проверяем является ли эта неделя текущей
               const today = new Date();
               const isCurrentWeek = week.days.some(day => {
@@ -840,92 +860,23 @@ function App() {
                 return dayDate.toDateString() === today.toDateString();
               });
               
-              // Проверяем нужно ли показать разделитель месяца
-              const prevWeek = index > 0 ? weeks[index - 1] : null;
-              const showMonthDivider = prevWeek && 
-                new Date(week.days[0].date).getMonth() !== new Date(prevWeek.days[0].date).getMonth();
-              
-              const monthName = getMonthName(new Date(week.days[0].date).getMonth());
-              const year = new Date(week.days[0].date).getFullYear();
-              
               return (
-                <div key={week.id} style={{ display: 'contents' }}>
-                  {/* Разделитель месяца */}
-                  {showMonthDivider && (
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 12,
-                      margin: '8px 0'
-                    }}>
-                      <div style={{
-                        flex: 1,
-                        height: 1,
-                        background: theme.borderPrimary
-                      }} />
-                      <span style={{
-                        fontSize: 12,
-                        fontWeight: 600,
-                        color: theme.textTertiary,
-                        textTransform: 'capitalize'
-                      }}>
-                        {monthName} {year}
-                      </span>
-                      <div style={{
-                        flex: 1,
-                        height: 1,
-                        background: theme.borderPrimary
-                      }} />
-                    </div>
-                  )}
-                  
-                  {/* Первая неделя (если это начало списка) */}
-                  {index === 0 && (
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 12,
-                      margin: '8px 0'
-                    }}>
-                      <div style={{
-                        flex: 1,
-                        height: 1,
-                        background: theme.borderPrimary
-                      }} />
-                      <span style={{
-                        fontSize: 12,
-                        fontWeight: 600,
-                        color: theme.textTertiary,
-                        textTransform: 'capitalize'
-                      }}>
-                        {monthName} {year}
-                      </span>
-                      <div style={{
-                        flex: 1,
-                        height: 1,
-                        background: theme.borderPrimary
-                      }} />
-                    </div>
-                  )}
-                  
-                  {/* Неделя */}
-                  <div ref={isCurrentWeek ? currentWeekRef : null}>
-                    <WeekRow
-                      week={week}
-                      tasks={tasks}
-                      assignments={assignments}
-                      dayStatuses={dayStatuses}
-                      onDropTask={dropTask}
-                      onRemoveAssignment={removeAssignment}
-                      onSplitAssignment={splitAssignment}
-                      onMoveAssignment={moveAssignment}
-                      onSetDayStatus={setDayStatus}
-                      onReorderAssignment={reorderAssignment}
-                      onMergeAssignments={mergeAssignments}
-                      isMobile={isMobile}
-                      isCurrentWeek={isCurrentWeek}
-                    />
-                  </div>
+                <div key={week.id} ref={isCurrentWeek ? currentWeekRef : null}>
+                  <WeekRow
+                    week={week}
+                    tasks={tasks}
+                    assignments={assignments}
+                    dayStatuses={dayStatuses}
+                    onDropTask={dropTask}
+                    onRemoveAssignment={removeAssignment}
+                    onSplitAssignment={splitAssignment}
+                    onMoveAssignment={moveAssignment}
+                    onSetDayStatus={setDayStatus}
+                    onReorderAssignment={reorderAssignment}
+                    onMergeAssignments={mergeAssignments}
+                    isMobile={isMobile}
+                    isCurrentWeek={isCurrentWeek}
+                  />
                 </div>
               );
             })}
