@@ -136,11 +136,14 @@ function App() {
     const currentMonthWeeks = getMonthWeeks(currentYear, currentMonth);
     const nextMonthWeeks = getMonthWeeks(nextMonthDate.getFullYear(), nextMonthDate.getMonth());
     
-    // Объединяем все недели и убираем дубликаты по id
+    // Объединяем все недели
     const allWeeks = [...prevMonthWeeks, ...currentMonthWeeks, ...nextMonthWeeks];
-    const uniqueWeeks = allWeeks.filter((week, index, self) => 
-      index === self.findIndex(w => w.id === week.id)
-    );
+    
+    // Убираем дублирующиеся недели (недели с одинаковым первым днём)
+    const uniqueWeeks = allWeeks.filter((week, index, self) => {
+      const firstDay = week.days[0].date.toDateString();
+      return index === self.findIndex(w => w.days[0].date.toDateString() === firstDay);
+    });
     
     // Находим текущую неделю (неделю с сегодняшней датой)
     const today = new Date();

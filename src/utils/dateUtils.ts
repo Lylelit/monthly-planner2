@@ -27,8 +27,9 @@ export function getMonthWeeks(year: number, month: number): Week[] {
       });
       current.setDate(current.getDate() + 1);
     }
+    // Уникальный ID недели с учётом года и месяца
     weeks.push({
-      id: `week-${weekIndex}`,
+      id: `week-${year}-${month}-${weekIndex}`,
       days,
     });
     weekIndex++;
