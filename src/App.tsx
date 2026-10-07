@@ -330,7 +330,7 @@ function App() {
 
   const totalTaskHours = tasks.reduce((sum, t) => sum + t.totalHours, 0);
   
-  // Считаем назначенные часы только для текущего месяца
+  // Считаем назначенные часы только для текущего месяца и только в РАБОЧИЕ дни
   const totalAssignedHours = useMemo(() => {
     return assignments.reduce((sum, a) => {
       // Проверяем что назначение принадлежит текущему месяцу
@@ -338,9 +338,14 @@ function App() {
       const dayDateStr = dayId.replace('day-', '');
       const dayDate = new Date(dayDateStr);
       const isCurrentMonth = dayDate.getMonth() === currentMonth && dayDate.getFullYear() === currentYear;
-      return isCurrentMonth ? sum + a.hours : sum;
+      
+      // Проверяем что день НЕ является отпускным или выходным
+      const isVacationOrHoliday = dayStatuses[dayId] === 'vacation' || dayStatuses[dayId] === 'holiday';
+      
+      // Учитываем только если это текущий месяц И день рабочий
+      return (isCurrentMonth && !isVacationOrHoliday) ? sum + a.hours : sum;
     }, 0);
-  }, [assignments, currentMonth, currentYear]);
+  }, [assignments, currentMonth, currentYear, dayStatuses]);
 
   // Расчёт общего рабочего времени за текущий выбранный месяц (8 часов × рабочие дни, исключая отпуск/праздники)
   const currentMonthWeeks = useMemo(() => {
