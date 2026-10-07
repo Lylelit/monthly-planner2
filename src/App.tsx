@@ -37,6 +37,8 @@ function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'new' | 'completed'>('all');
   const [showExportModal, setShowExportModal] = useState(false);
+  const [visibleMonth, setVisibleMonth] = useState({ month: now.getMonth(), year: now.getFullYear() });
+  const [shouldScrollToCurrentWeek, setShouldScrollToCurrentWeek] = useState(true);
 
   const toggleHint = () => {
     const newState = !showHint;
@@ -134,12 +136,15 @@ function App() {
     const currentMonthWeeks = getMonthWeeks(currentYear, currentMonth);
     const nextMonthWeeks = getMonthWeeks(nextMonthDate.getFullYear(), nextMonthDate.getMonth());
     
-    // Объединяем все недели
+    // Объединяем все недели и убираем дубликаты по id
     const allWeeks = [...prevMonthWeeks, ...currentMonthWeeks, ...nextMonthWeeks];
+    const uniqueWeeks = allWeeks.filter((week, index, self) => 
+      index === self.findIndex(w => w.id === week.id)
+    );
     
     // Находим текущую неделю (неделю с сегодняшней датой)
     const today = new Date();
-    const currentWeekIndex = allWeeks.findIndex(week => {
+    const currentWeekIndex = uniqueWeeks.findIndex(week => {
       return week.days.some(day => {
         const dayDate = new Date(day.date);
         return dayDate.toDateString() === today.toDateString();
@@ -149,22 +154,22 @@ function App() {
     // Если нашли текущую неделю, перестраиваем массив так, чтобы она была второй
     if (currentWeekIndex !== -1) {
       // Берём недели до текущей (включая предыдущий месяц)
-      const weeksBefore = allWeeks.slice(0, currentWeekIndex);
+      const weeksBefore = uniqueWeeks.slice(0, currentWeekIndex);
       // Текущая неделя
-      const currentWeek = allWeeks[currentWeekIndex];
+      const currentWeek = uniqueWeeks[currentWeekIndex];
       // Недели после текущей
-      const weeksAfter = allWeeks.slice(currentWeekIndex + 1);
+      const weeksAfter = uniqueWeeks.slice(currentWeekIndex + 1);
       
       // Собираем: все недели до текущей, текущая неделя (вторая позиция), все недели после
       return [...weeksBefore, currentWeek, ...weeksAfter];
     }
     
-    return allWeeks;
+    return uniqueWeeks;
   }, [currentYear, currentMonth]);
 
   // Автоматический скролл к текущей неделе при загрузке
   useEffect(() => {
-    if (!isLoading && weeks.length > 0) {
+    if (!isLoading && weeks.length > 0 && shouldScrollToCurrentWeek) {
       // Небольшая задержка для гарантии, что DOM полностью отрендерился
       const timer = setTimeout(() => {
         if (currentWeekRef.current && weeksContainerRef.current) {
@@ -175,12 +180,6 @@ function App() {
           const containerRect = container.getBoundingClientRect();
           const weekRect = weekElement.getBoundingClientRect();
           
-          console.log('Scrolling to current week:', {
-            containerTop: containerRect.top,
-            weekTop: weekRect.top,
-            containerScrollTop: container.scrollTop
-          });
-          
           // Вычисляем позицию для скролла (текущая неделя должна быть второй сверху)
           const scrollTop = weekRect.top - containerRect.top + container.scrollTop - 20;
           
@@ -188,29 +187,77 @@ function App() {
             top: scrollTop,
             behavior: 'smooth'
           });
-        } else {
-          console.warn('Refs not ready:', {
-            hasCurrentWeekRef: !!currentWeekRef.current,
-            hasContainerRef: !!weeksContainerRef.current
-          });
         }
       }, 200);
       
       return () => clearTimeout(timer);
     }
-  }, [weeks, isLoading]);
+  }, [weeks, isLoading, shouldScrollToCurrentWeek]);
+
+  // Обработчик скролла для определения активного месяца
+  useEffect(() => {
+    const container = weeksContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      const containerRect = container.getBoundingClientRect();
+      const containerCenter = containerRect.top + containerRect.height / 2;
+      
+      // Находим неделю, которая находится ближе всего к центру контейнера
+      let closestWeek: Week | undefined;
+      let minDistance = Infinity;
+      
+      weeks.forEach(week => {
+        const weekElement = document.getElementById(`week-${week.id}`);
+        if (weekElement) {
+          const weekRect = weekElement.getBoundingClientRect();
+          const weekCenter = weekRect.top + weekRect.height / 2;
+          const distance = Math.abs(weekCenter - containerCenter);
+          
+          if (distance < minDistance) {
+            minDistance = distance;
+            closestWeek = week;
+          }
+        }
+      });
+      
+      // Определяем месяц ближайшей недели
+      if (closestWeek) {
+        const firstDay = new Date(closestWeek.days[0].date);
+        const month = firstDay.getMonth();
+        const year = firstDay.getFullYear();
+        
+        // Обновляем видимый месяц если он изменился
+        if (month !== visibleMonth.month || year !== visibleMonth.year) {
+          setVisibleMonth({ month, year });
+        }
+      }
+    };
+
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, [weeks, visibleMonth]);
 
   const prevMonth = () => {
     if (currentMonth === 0) { setCurrentMonth(11); setCurrentYear(currentYear - 1); }
     else setCurrentMonth(currentMonth - 1);
+    setVisibleMonth({ month: currentMonth === 0 ? 11 : currentMonth - 1, year: currentMonth === 0 ? currentYear - 1 : currentYear });
+    setShouldScrollToCurrentWeek(false);
   };
 
   const nextMonth = () => {
     if (currentMonth === 11) { setCurrentMonth(0); setCurrentYear(currentYear + 1); }
     else setCurrentMonth(currentMonth + 1);
+    setVisibleMonth({ month: currentMonth === 11 ? 0 : currentMonth + 1, year: currentMonth === 11 ? currentYear + 1 : currentYear });
+    setShouldScrollToCurrentWeek(false);
   };
 
-  const goToToday = () => { setCurrentYear(now.getFullYear()); setCurrentMonth(now.getMonth()); };
+  const goToToday = () => { 
+    setCurrentYear(now.getFullYear()); 
+    setCurrentMonth(now.getMonth());
+    setVisibleMonth({ month: now.getMonth(), year: now.getFullYear() });
+    setShouldScrollToCurrentWeek(true);
+  };
 
   const addTask = useCallback((task: Task) => { setTasks((prev) => [...prev, task]); }, []);
 
@@ -499,7 +546,7 @@ function App() {
               textAlign: 'center', 
               margin: 0 
             }}>
-              {getMonthName(currentMonth)} {currentYear}
+              {getMonthName(visibleMonth.month)} {visibleMonth.year}
             </h2>
             <button onClick={nextMonth} style={{
               padding: isMobile ? 6 : 8, 
@@ -883,8 +930,12 @@ function App() {
                 return dayDate.toDateString() === today.toDateString();
               });
               
+              // Проверяем принадлежит ли неделя активному месяцу
+              const firstDay = new Date(week.days[0].date);
+              const isActiveMonth = firstDay.getMonth() === visibleMonth.month && firstDay.getFullYear() === visibleMonth.year;
+              
               return (
-                <div key={week.id} ref={isCurrentWeek ? currentWeekRef : null}>
+                <div key={week.id} id={`week-${week.id}`} ref={isCurrentWeek ? currentWeekRef : null}>
                   <WeekRow
                     week={week}
                     tasks={tasks}
@@ -899,6 +950,7 @@ function App() {
                     onMergeAssignments={mergeAssignments}
                     isMobile={isMobile}
                     isCurrentWeek={isCurrentWeek}
+                    isActiveMonth={isActiveMonth}
                   />
                 </div>
               );
@@ -978,9 +1030,10 @@ interface WeekRowProps {
   onMergeAssignments?: (sourceId: string, targetId: string) => void;
   isMobile: boolean;
   isCurrentWeek?: boolean;
+  isActiveMonth?: boolean;
 }
 
-function WeekRow({ week, tasks, assignments, dayStatuses, onDropTask, onRemoveAssignment, onSplitAssignment, onMoveAssignment, onSetDayStatus, onReorderAssignment, onMergeAssignments, isMobile, isCurrentWeek }: WeekRowProps & { isMobile: boolean }) {
+function WeekRow({ week, tasks, assignments, dayStatuses, onDropTask, onRemoveAssignment, onSplitAssignment, onMoveAssignment, onSetDayStatus, onReorderAssignment, onMergeAssignments, isMobile, isCurrentWeek, isActiveMonth }: WeekRowProps & { isMobile: boolean }) {
   const { theme } = useTheme();
   
   return (
@@ -1011,6 +1064,7 @@ function WeekRow({ week, tasks, assignments, dayStatuses, onDropTask, onRemoveAs
             onReorderAssignment={onReorderAssignment}
             onMergeAssignments={onMergeAssignments}
             isMobile={isMobile}
+            isActiveMonth={isActiveMonth}
           />
         ))}
       </div>
