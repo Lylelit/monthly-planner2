@@ -329,13 +329,31 @@ function App() {
   }, [assignments]);
 
   const totalTaskHours = tasks.reduce((sum, t) => sum + t.totalHours, 0);
-  const totalAssignedHours = assignments.reduce((sum, a) => sum + a.hours, 0);
+  
+  // Считаем назначенные часы только для текущего месяца
+  const totalAssignedHours = useMemo(() => {
+    return assignments.reduce((sum, a) => {
+      // Проверяем что назначение принадлежит текущему месяцу
+      const dayId = a.dayId;
+      const dayDateStr = dayId.replace('day-', '');
+      const dayDate = new Date(dayDateStr);
+      const isCurrentMonth = dayDate.getMonth() === currentMonth && dayDate.getFullYear() === currentYear;
+      return isCurrentMonth ? sum + a.hours : sum;
+    }, 0);
+  }, [assignments, currentMonth, currentYear]);
 
-  // Расчёт общего рабочего времени за месяц (8 часов × рабочие дни, исключая отпуск/праздники)
-  const workingDaysInMonth = weeks.reduce((count, week) => {
-    return count + week.days.filter(day => 
-      day.isWorkingDay && !dayStatuses[day.id]
-    ).length;
+  // Расчёт общего рабочего времени за текущий выбранный месяц (8 часов × рабочие дни, исключая отпуск/праздники)
+  const currentMonthWeeks = useMemo(() => {
+    return getMonthWeeks(currentYear, currentMonth);
+  }, [currentYear, currentMonth]);
+  
+  const workingDaysInMonth = currentMonthWeeks.reduce((count, week) => {
+    return count + week.days.filter(day => {
+      // Проверяем что день принадлежит текущему месяцу
+      const dayDate = new Date(day.date);
+      const isCurrentMonth = dayDate.getMonth() === currentMonth && dayDate.getFullYear() === currentYear;
+      return isCurrentMonth && day.isWorkingDay && !dayStatuses[day.id];
+    }).length;
   }, 0);
   const totalWorkingHours = workingDaysInMonth * HOURS_PER_DAY;
   const remainingWorkingHours = totalWorkingHours - totalAssignedHours;
