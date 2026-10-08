@@ -10,8 +10,11 @@ import EditTaskModal from './components/EditTaskModal';
 import SearchFilter from './components/SearchFilter';
 import ExportModal from './components/ExportModal';
 import AuthScreen, { Profile } from './components/AuthScreen';
+import RedmineSettingsModal from './components/RedmineSettingsModal';
+import RedmineImportModal from './components/RedmineImportModal';
 import { exportToExcel } from './utils/excelExport';
 import { loadTasks, loadAssignments, saveTasks, saveAssignments, setCurrentProfile } from './services/storageService';
+import { getRedmineSettings, RedmineSettings } from './services/redmineService';
 import { useTheme } from './ThemeContext';
 
 function App() {
@@ -35,6 +38,9 @@ function App() {
   const [showExportModal, setShowExportModal] = useState(false);
   const [visibleMonth, setVisibleMonth] = useState({ month: now.getMonth(), year: now.getFullYear() });
   const [shouldScrollToCurrentWeek, setShouldScrollToCurrentWeek] = useState(true);
+  const [redmineSettings, setRedmineSettings] = useState<RedmineSettings | null>(null);
+  const [showRedmineSettings, setShowRedmineSettings] = useState(false);
+  const [showRedmineImport, setShowRedmineImport] = useState(false);
 
   const toggleHint = () => {
     const newState = !showHint;
@@ -48,6 +54,10 @@ function App() {
     catch (error) { console.error('Export error:', error); alert('Ошибка при экспорте: ' + (error as Error).message); }
   };
 
+  const handleRedmineImport = (importedTasks: Task[]) => {
+    setTasks((prev) => [...prev, ...importedTasks]);
+  };
+
   useEffect(() => {
     const savedLogin = localStorage.getItem('planner-current-user');
     if (savedLogin) {
@@ -58,6 +68,10 @@ function App() {
       } catch (e) { console.error('Error loading profile:', e); }
     }
     setAuthChecked(true);
+    
+    // Загрузка настроек Redmine
+    const settings = getRedmineSettings();
+    if (settings) setRedmineSettings(settings);
   }, []);
 
   useEffect(() => {
@@ -345,6 +359,57 @@ function App() {
             <h3 style={{ fontSize: 14, fontWeight: 600, color: theme.textPrimary, marginBottom: 12 }}>Мои задачи</h3>
             <TaskForm onAddTask={addTask} />
           </div>
+          
+          {/* Redmine интеграция */}
+          <div style={{ background: theme.bgCard, borderRadius: 16, border: `1px solid ${theme.borderPrimary}`, padding: 16, boxShadow: theme.shadow }}>
+            <h3 style={{ fontSize: 14, fontWeight: 600, color: theme.textPrimary, marginBottom: 12 }}>Redmine</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <button
+                onClick={() => {
+                  if (!redmineSettings) {
+                    setShowRedmineSettings(true);
+                  } else {
+                    setShowRedmineImport(true);
+                  }
+                }}
+                style={{
+                  padding: '10px 12px',
+                  borderRadius: 8,
+                  border: 'none',
+                  background: theme.accent1,
+                  color: '#fff',
+                  fontSize: 13,
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                }}
+              >
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                </svg>
+                {redmineSettings ? 'Импорт задач' : 'Настроить'}
+              </button>
+              {redmineSettings && (
+                <button
+                  onClick={() => setShowRedmineSettings(true)}
+                  style={{
+                    padding: '8px 12px',
+                    borderRadius: 8,
+                    border: `1px solid ${theme.borderPrimary}`,
+                    background: theme.bgSecondary,
+                    color: theme.textSecondary,
+                    fontSize: 12,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Настройки Redmine
+                </button>
+              )}
+            </div>
+          </div>
+          
           <SearchFilter searchQuery={searchQuery} onSearchChange={setSearchQuery} statusFilter={statusFilter} onStatusFilterChange={setStatusFilter} />
           {filteredTasks.filter(t => t.status !== 'completed').length > 0 && (
             <div style={{ background: theme.bgCard, borderRadius: 16, border: `1px solid ${theme.borderPrimary}`, padding: 16, boxShadow: theme.shadow, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
@@ -391,6 +456,19 @@ function App() {
 
       {editingTask && <EditTaskModal task={editingTask} onSave={editTask} onCancel={() => setEditingTask(null)} />}
       {showExportModal && <ExportModal onClose={() => setShowExportModal(false)} onExport={handleExport} />}
+      {showRedmineSettings && (
+        <RedmineSettingsModal
+          onClose={() => setShowRedmineSettings(false)}
+          onSave={(settings) => setRedmineSettings(settings)}
+        />
+      )}
+      {showRedmineImport && redmineSettings && (
+        <RedmineImportModal
+          settings={redmineSettings}
+          onClose={() => setShowRedmineImport(false)}
+          onImport={handleRedmineImport}
+        />
+      )}
 
       <footer style={{ maxWidth: 1800, margin: '32px auto 0', padding: '24px 16px', borderTop: `1px solid ${theme.borderPrimary}` }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, color: theme.textTertiary }}>
