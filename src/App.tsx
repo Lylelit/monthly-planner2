@@ -654,13 +654,17 @@ function WeekRow({ week, tasks, assignments, dayStatuses, onDropTask, onRemoveAs
   const { theme } = useTheme();
   return (
     <div style={{ padding: isCurrentWeek ? 8 : 0, background: isCurrentWeek ? `${theme.accent1}08` : 'transparent', borderRadius: 12, border: isCurrentWeek ? `2px solid ${theme.accent1}30` : 'none', transition: 'all 0.3s ease' }}>
-      <div style={{ display: isMobile ? 'flex' : 'grid', gridTemplateColumns: isMobile ? undefined : 'repeat(5, 1fr)', flexDirection: isMobile ? 'column' : undefined, gap: isMobile ? 8 : 12 }}>
+      <div style={{ display: isMobile ? 'flex' : 'grid', gridTemplateColumns: isMobile ? undefined : 'repeat(5, minmax(0, 1fr))', flexDirection: isMobile ? 'column' : undefined, gap: isMobile ? 8 : 12 }}>
         {week.days.map((day) => {
           const dayDate = new Date(day.date);
           const isCurrentWeekDay = week.id === currentWeekId;
           const isDayInActiveMonth = dayDate.getMonth() === visibleMonth.month && dayDate.getFullYear() === visibleMonth.year;
           const isActiveDay = isCurrentWeekDay || isDayInActiveMonth;
-          return (<DayColumn key={day.id} day={{ ...day, status: dayStatuses[day.id]?.status || 'working', shortHours: dayStatuses[day.id]?.hours }} tasks={tasks} assignments={assignments} onDropTask={onDropTask} onRemoveAssignment={onRemoveAssignment} onSplitAssignment={onSplitAssignment} onMoveAssignment={onMoveAssignment} onSetDayStatus={onSetDayStatus} onReorderAssignment={onReorderAssignment} onMergeAssignments={onMergeAssignments} isMobile={isMobile} isActiveMonth={isActiveDay} />);
+          return (
+            <div key={day.id} className="day-column-wrapper">
+              <DayColumn day={{ ...day, status: dayStatuses[day.id]?.status || 'working', shortHours: dayStatuses[day.id]?.hours }} tasks={tasks} assignments={assignments} onDropTask={onDropTask} onRemoveAssignment={onRemoveAssignment} onSplitAssignment={onSplitAssignment} onMoveAssignment={onMoveAssignment} onSetDayStatus={onSetDayStatus} onReorderAssignment={onReorderAssignment} onMergeAssignments={onMergeAssignments} isMobile={isMobile} isActiveMonth={isActiveDay} />
+            </div>
+          );
         })}
       </div>
     </div>
