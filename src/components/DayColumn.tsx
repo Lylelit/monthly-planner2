@@ -82,7 +82,7 @@ export default function DayColumn({ day, tasks, assignments, onDropTask, onRemov
   return (
     <div onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}
       className="day-column"
-      style={{ position: 'relative', display: 'flex', flexDirection: 'column', borderRadius: 12, minHeight: isMobile ? 120 : 180, transition: 'all 0.2s',
+      style={{ position: 'relative', display: 'flex', flexDirection: 'column', borderRadius: 12, minHeight: isMobile ? 120 : 180, height: '100%', transition: 'all 0.2s',
         background: !isActiveMonth ? theme.bgTertiary : isVacation ? `${theme.warning}10` : isHoliday ? `${theme.accent2}10` : cardBg,
         border: `${isToday ? '3px' : '1px'} solid ${!isActiveMonth ? theme.borderPrimary : isToday ? theme.accent1 : isDragOver ? theme.accent1 : isVacation ? theme.warning : isHoliday ? theme.accent2 : theme.borderPrimary}`,
         opacity: !isActiveMonth ? 0.4 : isNonWorking ? 0.7 : 1,

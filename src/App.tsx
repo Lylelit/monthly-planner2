@@ -654,7 +654,7 @@ function WeekRow({ week, tasks, assignments, dayStatuses, onDropTask, onRemoveAs
   const { theme } = useTheme();
   return (
     <div style={{ padding: isCurrentWeek ? 8 : 0, background: isCurrentWeek ? `${theme.accent1}08` : 'transparent', borderRadius: 12, border: isCurrentWeek ? `2px solid ${theme.accent1}30` : 'none', transition: 'all 0.3s ease' }}>
-      <div style={{ display: isMobile ? 'flex' : 'grid', gridTemplateColumns: isMobile ? undefined : 'repeat(5, minmax(0, 1fr))', flexDirection: isMobile ? 'column' : undefined, gap: isMobile ? 8 : 12 }}>
+      <div style={{ display: isMobile ? 'flex' : 'grid', gridTemplateColumns: isMobile ? undefined : 'repeat(5, minmax(0, 1fr))', alignItems: 'stretch', flexDirection: isMobile ? 'column' : undefined, gap: isMobile ? 8 : 12 }}>
         {week.days.map((day) => {
           const dayDate = new Date(day.date);
           const isCurrentWeekDay = week.id === currentWeekId;
