@@ -12,5 +12,12 @@ export default defineConfig({
     hmr: {
       port: 3000,
     },
+    proxy: {
+      '/redmine-api': {
+        target: 'https://rm.yarkiy.ru',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/redmine-api/, ''),
+      },
+    },
   },
 });

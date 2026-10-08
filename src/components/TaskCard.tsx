@@ -52,22 +52,23 @@ export default function TaskCard({ task, assignedHours, totalAssignedHours, onDr
   };
 
   return (
-    <div style={{ position: 'relative' }}>
+    <div style={{ position: 'relative', width: '100%', boxSizing: 'border-box', minWidth: 0 }}>
       {dragOverPosition === 'above' && <div style={{ height: 4, background: theme.accent1, borderRadius: 2, margin: '4px 0' }} />}
       <div draggable onClick={() => setShowDetailsModal(true)} onDragStart={(e) => { e.dataTransfer.setData('taskId', task.id); e.dataTransfer.effectAllowed = 'move'; onDragStart(task.id); }} onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}
-        style={{ position: 'relative', borderRadius: 10, padding: 12, cursor: 'pointer', border: `1px solid ${theme.borderPrimary}`, background: theme.bgCard, transition: 'all 0.2s', borderLeft: `4px solid ${task.color}`, boxShadow: theme.shadow }}
+        className="task-card"
+        style={{ position: 'relative', borderRadius: 10, padding: 12, cursor: 'pointer', border: `1px solid ${theme.borderPrimary}`, background: theme.bgCard, transition: 'all 0.2s', borderLeft: `4px solid ${task.color}`, boxShadow: theme.shadow, width: '100%', boxSizing: 'border-box', overflow: 'hidden', minWidth: 0 }}
         onMouseEnter={e => { e.currentTarget.style.boxShadow = theme.shadowLg; e.currentTarget.style.borderLeft = `4px solid ${task.color}`; }}
         onMouseLeave={e => { e.currentTarget.style.boxShadow = theme.shadow; e.currentTarget.style.borderLeft = `4px solid ${task.color}`; }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <h4 style={{ fontSize: 14, fontWeight: 500, color: theme.textPrimary, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{task.title}</h4>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
-              <span style={{ fontSize: 12, color: theme.textTertiary }}>{formatHours(totalAssignedHours)} / {formatHours(task.totalHours)}</span>
-              {remaining > 0 && <span style={{ fontSize: 12, color: theme.warning, fontWeight: 500 }}>({formatHours(remaining)} не запланировано)</span>}
-              {remaining === 0 && <svg width="14" height="14" fill="none" stroke={theme.success} viewBox="0 0 24 24" style={{ display: 'inline', verticalAlign: 'middle' }}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7"/></svg>}
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, overflow: 'hidden', minWidth: 0 }}>
+          <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+            <h4 style={{ fontSize: 14, fontWeight: 500, color: theme.textPrimary, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>{task.title}</h4>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, overflow: 'hidden', minWidth: 0 }}>
+              <span style={{ fontSize: 12, color: theme.textTertiary, whiteSpace: 'nowrap' }}>{formatHours(totalAssignedHours)} / {formatHours(task.totalHours)}</span>
+              {remaining > 0 && <span style={{ fontSize: 12, color: theme.warning, fontWeight: 500, whiteSpace: 'nowrap' }}>({formatHours(remaining)} не запланировано)</span>}
+              {remaining === 0 && <svg width="14" height="14" fill="none" stroke={theme.success} viewBox="0 0 24 24" style={{ display: 'inline', verticalAlign: 'middle', flexShrink: 0 }}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7"/></svg>}
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 2, opacity: 0, transition: 'opacity 0.2s' }} className="task-card-actions">
+          <div style={{ display: 'flex', gap: 2, opacity: 0, transition: 'opacity 0.2s', flexShrink: 0 }} className="task-card-actions">
             <button onClick={(e) => { e.stopPropagation(); onEdit(task); }} style={{ padding: 4, borderRadius: 6, border: 'none', cursor: 'pointer', background: 'transparent', color: theme.textTertiary }} title="Редактировать">
               <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
             </button>

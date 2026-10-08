@@ -81,12 +81,13 @@ export default function DayColumn({ day, tasks, assignments, onDropTask, onRemov
 
   return (
     <div onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}
-      style={{ position: 'relative', display: 'flex', flexDirection: 'column', borderRadius: 12, minHeight: isMobile ? 120 : 180, transition: 'all 0.2s',
+      className="day-column"
+      style={{ position: 'relative', display: 'flex', flexDirection: 'column', borderRadius: 12, minHeight: isMobile ? 120 : 180, height: '100%', transition: 'all 0.2s',
         background: !isActiveMonth ? theme.bgTertiary : isVacation ? `${theme.warning}10` : isHoliday ? `${theme.accent2}10` : cardBg,
         border: `${isToday ? '3px' : '1px'} solid ${!isActiveMonth ? theme.borderPrimary : isToday ? theme.accent1 : isDragOver ? theme.accent1 : isVacation ? theme.warning : isHoliday ? theme.accent2 : theme.borderPrimary}`,
         opacity: !isActiveMonth ? 0.4 : isNonWorking ? 0.7 : 1,
         boxShadow: isDragOver ? `0 0 0 2px ${theme.accent1}30` : theme.shadow,
-        overflow: 'visible', width: isMobile ? '100%' : undefined }}>
+        overflow: 'hidden', width: '100%', minWidth: 0, boxSizing: 'border-box' }}>
       
       {/* Header */}
       <div style={{ padding: '10px 12px', borderBottom: `1px solid ${theme.borderPrimary}`, background: isToday ? `${theme.accent1}08` : isVacation ? `${theme.warning}15` : isHoliday ? `${theme.accent2}15` : 'transparent', borderRadius: '12px 12px 0 0', position: 'relative' }}>
