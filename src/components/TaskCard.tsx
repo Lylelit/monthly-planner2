@@ -55,6 +55,7 @@ export default function TaskCard({ task, assignedHours, totalAssignedHours, onDr
     <div style={{ position: 'relative', width: '100%', boxSizing: 'border-box', minWidth: 0 }}>
       {dragOverPosition === 'above' && <div style={{ height: 4, background: theme.accent1, borderRadius: 2, margin: '4px 0' }} />}
       <div draggable onClick={() => setShowDetailsModal(true)} onDragStart={(e) => { e.dataTransfer.setData('taskId', task.id); e.dataTransfer.effectAllowed = 'move'; onDragStart(task.id); }} onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}
+        className="task-card"
         style={{ position: 'relative', borderRadius: 10, padding: 12, cursor: 'pointer', border: `1px solid ${theme.borderPrimary}`, background: theme.bgCard, transition: 'all 0.2s', borderLeft: `4px solid ${task.color}`, boxShadow: theme.shadow, width: '100%', boxSizing: 'border-box', overflow: 'hidden', minWidth: 0 }}
         onMouseEnter={e => { e.currentTarget.style.boxShadow = theme.shadowLg; e.currentTarget.style.borderLeft = `4px solid ${task.color}`; }}
         onMouseLeave={e => { e.currentTarget.style.boxShadow = theme.shadow; e.currentTarget.style.borderLeft = `4px solid ${task.color}`; }}>

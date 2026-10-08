@@ -566,7 +566,7 @@ function App() {
                   <h3 style={{ fontSize: 14, fontWeight: 600, color: theme.textPrimary, marginBottom: 12, flexShrink: 0 }}>Новые задачи ({filteredTasks.filter(t => t.status !== 'completed').length})</h3>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8, overflowY: 'auto', overflowX: 'hidden', flex: 1, width: '100%', boxSizing: 'border-box' }}>
                     {filteredTasks.filter(t => t.status !== 'completed').map((task, index) => (
-                      <div key={task.id} style={{ flexShrink: 0, width: '100%', boxSizing: 'border-box', minWidth: 0 }}>
+                      <div key={task.id} className="task-card-wrapper">
                         <TaskCard task={task} assignedHours={getTaskAssignedHours(task.id)} totalAssignedHours={getTaskAssignedHours(task.id)} onDragStart={setDraggedTaskId} onComplete={completeTask} onEdit={setEditingTask} onDelete={deleteTask} onReorder={(draggedId, targetId) => { const newTasks = [...tasks]; const draggedIndex = newTasks.findIndex(t => t.id === draggedId); const targetIndex = newTasks.findIndex(t => t.id === targetId); if (draggedIndex !== -1 && targetIndex !== -1) { const [draggedTask] = newTasks.splice(draggedIndex, 1); newTasks.splice(targetIndex, 0, draggedTask); setTasks(newTasks); } }} index={index} />
                       </div>
                     ))}
