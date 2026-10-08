@@ -55,7 +55,7 @@ export default function TaskCard({ task, assignedHours, totalAssignedHours, onDr
     <div style={{ position: 'relative' }}>
       {dragOverPosition === 'above' && <div style={{ height: 4, background: theme.accent1, borderRadius: 2, margin: '4px 0' }} />}
       <div draggable onClick={() => setShowDetailsModal(true)} onDragStart={(e) => { e.dataTransfer.setData('taskId', task.id); e.dataTransfer.effectAllowed = 'move'; onDragStart(task.id); }} onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}
-        style={{ position: 'relative', borderRadius: 10, padding: 12, cursor: 'pointer', border: `1px solid ${theme.borderPrimary}`, background: theme.bgCard, transition: 'all 0.2s', borderLeft: `4px solid ${task.color}`, boxShadow: theme.shadow }}
+        style={{ position: 'relative', borderRadius: 10, padding: 12, cursor: 'pointer', border: `1px solid ${theme.borderPrimary}`, background: theme.bgCard, transition: 'all 0.2s', borderLeft: `4px solid ${task.color}`, boxShadow: theme.shadow, width: '100%', boxSizing: 'border-box' }}
         onMouseEnter={e => { e.currentTarget.style.boxShadow = theme.shadowLg; e.currentTarget.style.borderLeft = `4px solid ${task.color}`; }}
         onMouseLeave={e => { e.currentTarget.style.boxShadow = theme.shadow; e.currentTarget.style.borderLeft = `4px solid ${task.color}`; }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>

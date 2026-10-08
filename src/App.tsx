@@ -38,6 +38,7 @@ function App() {
   const [showExportModal, setShowExportModal] = useState(false);
   const [visibleMonth, setVisibleMonth] = useState({ month: now.getMonth(), year: now.getFullYear() });
   const [shouldScrollToCurrentWeek, setShouldScrollToCurrentWeek] = useState(true);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   // const [redmineSettings, setRedmineSettings] = useState<RedmineSettings | null>(null);
   // const [showRedmineSettings, setShowRedmineSettings] = useState(false);
   // const [showRedmineImport, setShowRedmineImport] = useState(false);
@@ -353,80 +354,231 @@ function App() {
 
       <div style={{ maxWidth: 1800, margin: '0 auto', display: 'flex', gap: isMobile ? 0 : 16, padding: isMobile ? 8 : 16, flexDirection: isMobile ? 'column' : 'row' }}>
         {isMobile && <button onClick={() => setShowSidebar(!showSidebar)} style={{ position: 'fixed', bottom: 20, right: 20, width: 56, height: 56, borderRadius: '50%', background: theme.accent1, color: '#fff', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', cursor: 'pointer', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg></button>}
-        <aside style={{ width: isMobile ? '100%' : 288, flexShrink: 0, display: isMobile && !showSidebar ? 'none' : 'flex', flexDirection: 'column', gap: 16, position: isMobile ? 'fixed' : 'sticky', top: isMobile ? 0 : 72, left: isMobile ? 0 : undefined, right: isMobile ? 0 : undefined, bottom: isMobile ? 0 : undefined, background: isMobile ? theme.bgPrimary : 'transparent', zIndex: isMobile ? 99 : 1, padding: isMobile ? 16 : 0, overflowY: 'auto', maxHeight: isMobile ? '100vh' : 'calc(100vh - 88px)' }}>
+        <aside style={{ 
+          width: isMobile ? '100%' : (isSidebarCollapsed ? '5%' : 288), 
+          flexShrink: 0, 
+          display: isMobile && !showSidebar ? 'none' : 'flex', 
+          flexDirection: 'column', 
+          gap: 16, 
+          position: isMobile ? 'fixed' : 'sticky', 
+          top: isMobile ? 0 : 72, 
+          left: isMobile ? 0 : undefined, 
+          right: isMobile ? 0 : undefined, 
+          bottom: isMobile ? 0 : undefined, 
+          background: isMobile ? theme.bgPrimary : 'transparent', 
+          zIndex: isMobile ? 99 : 1, 
+          padding: isMobile ? 16 : 0, 
+          overflowY: 'auto', 
+          overflowX: 'hidden',
+          maxHeight: isMobile ? '100vh' : 'calc(100vh - 88px)',
+          transition: 'width 0.3s ease'
+        }}>
           {isMobile && <button onClick={() => setShowSidebar(false)} style={{ alignSelf: 'flex-end', padding: 8, borderRadius: 8, border: 'none', background: theme.bgSecondary, color: theme.textSecondary, cursor: 'pointer', marginBottom: 8 }}><svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>}
-          <div style={{ background: theme.bgCard, borderRadius: 16, border: `1px solid ${theme.borderPrimary}`, padding: 16, boxShadow: theme.shadow }}>
-            <h3 style={{ fontSize: 14, fontWeight: 600, color: theme.textPrimary, marginBottom: 12 }}>Мои задачи</h3>
-            <TaskForm onAddTask={addTask} />
-          </div>
           
-          {/* Redmine интеграция - временно скрыта из-за проблем с CORS */}
-          {/* <div style={{ background: theme.bgCard, borderRadius: 16, border: `1px solid ${theme.borderPrimary}`, padding: 16, boxShadow: theme.shadow }}>
-            <h3 style={{ fontSize: 14, fontWeight: 600, color: theme.textPrimary, marginBottom: 12 }}>Redmine</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <button
-                onClick={() => {
-                  if (!redmineSettings) {
-                    setShowRedmineSettings(true);
-                  } else {
-                    setShowRedmineImport(true);
-                  }
-                }}
-                style={{
-                  padding: '10px 12px',
-                  borderRadius: 8,
-                  border: 'none',
-                  background: theme.accent1,
-                  color: '#fff',
-                  fontSize: 13,
-                  fontWeight: 500,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                }}
-              >
-                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+          {/* Кнопка сворачивания для десктопа */}
+          {!isMobile && (
+            <button 
+              onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+              style={{ 
+                alignSelf: 'flex-end', 
+                padding: 8, 
+                borderRadius: 8, 
+                border: 'none', 
+                background: theme.bgSecondary, 
+                color: theme.textSecondary, 
+                cursor: 'pointer', 
+                marginBottom: 8,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+              title={isSidebarCollapsed ? 'Развернуть панель' : 'Свернуть панель'}
+            >
+              <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                {isSidebarCollapsed ? (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+                )}
+              </svg>
+            </button>
+          )}
+          
+          {/* Свёрнутое состояние - только иконки */}
+          {isSidebarCollapsed && !isMobile ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16, alignItems: 'center' }}>
+              {/* Иконка "Мои задачи" */}
+              <div style={{ 
+                background: theme.bgCard, 
+                borderRadius: 12, 
+                border: `1px solid ${theme.borderPrimary}`, 
+                padding: 12, 
+                boxShadow: theme.shadow,
+                cursor: 'pointer'
+              }} title="Мои задачи">
+                <svg width="20" height="20" fill="none" stroke={theme.accent1} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                 </svg>
-                {redmineSettings ? 'Импорт задач' : 'Настроить'}
-              </button>
-              {redmineSettings && (
-                <button
-                  onClick={() => setShowRedmineSettings(true)}
-                  style={{
-                    padding: '8px 12px',
-                    borderRadius: 8,
-                    border: `1px solid ${theme.borderPrimary}`,
-                    background: theme.bgSecondary,
-                    color: theme.textSecondary,
-                    fontSize: 12,
-                    cursor: 'pointer',
-                  }}
-                >
-                  Настройки Redmine
-                </button>
+              </div>
+              
+              {/* Иконка поиска */}
+              <div style={{ 
+                background: theme.bgCard, 
+                borderRadius: 12, 
+                border: `1px solid ${theme.borderPrimary}`, 
+                padding: 12, 
+                boxShadow: theme.shadow,
+                cursor: 'pointer'
+              }} title="Поиск">
+                <svg width="20" height="20" fill="none" stroke={theme.accent1} viewBox="0 0 24 24">
+                  <circle cx="11" cy="11" r="8" />
+                  <path strokeLinecap="round" d="M21 21l-4.35-4.35" />
+                </svg>
+              </div>
+              
+              {/* Иконка "Новые задачи" */}
+              {filteredTasks.filter(t => t.status !== 'completed').length > 0 && (
+                <div style={{ 
+                  background: theme.bgCard, 
+                  borderRadius: 12, 
+                  border: `1px solid ${theme.borderPrimary}`, 
+                  padding: 12, 
+                  boxShadow: theme.shadow,
+                  position: 'relative'
+                }} title={`Новые задачи: ${filteredTasks.filter(t => t.status !== 'completed').length}`}>
+                  <svg width="20" height="20" fill="none" stroke={theme.accent1} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                  </svg>
+                  <span style={{
+                    position: 'absolute',
+                    top: -4,
+                    right: -4,
+                    background: theme.accent1,
+                    color: '#fff',
+                    borderRadius: '50%',
+                    width: 18,
+                    height: 18,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 10,
+                    fontWeight: 600
+                  }}>
+                    {filteredTasks.filter(t => t.status !== 'completed').length}
+                  </span>
+                </div>
+              )}
+              
+              {/* Иконка "Выполненные задачи" */}
+              {filteredTasks.filter(t => t.status === 'completed').length > 0 && (
+                <div style={{ 
+                  background: theme.bgCard, 
+                  borderRadius: 12, 
+                  border: `1px solid ${theme.borderPrimary}`, 
+                  padding: 12, 
+                  boxShadow: theme.shadow,
+                  position: 'relative'
+                }} title={`Выполненные задачи: ${filteredTasks.filter(t => t.status === 'completed').length}`}>
+                  <svg width="20" height="20" fill="none" stroke={theme.success} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span style={{
+                    position: 'absolute',
+                    top: -4,
+                    right: -4,
+                    background: theme.success,
+                    color: '#fff',
+                    borderRadius: '50%',
+                    width: 18,
+                    height: 18,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 10,
+                    fontWeight: 600
+                  }}>
+                    {filteredTasks.filter(t => t.status === 'completed').length}
+                  </span>
+                </div>
               )}
             </div>
-          </div> */}
-          
-          <SearchFilter searchQuery={searchQuery} onSearchChange={setSearchQuery} statusFilter={statusFilter} onStatusFilterChange={setStatusFilter} />
-          {filteredTasks.filter(t => t.status !== 'completed').length > 0 && (
-            <div style={{ background: theme.bgCard, borderRadius: 16, border: `1px solid ${theme.borderPrimary}`, padding: 16, boxShadow: theme.shadow, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-              <h3 style={{ fontSize: 14, fontWeight: 600, color: theme.textPrimary, marginBottom: 12, flexShrink: 0 }}>Новые задачи ({filteredTasks.filter(t => t.status !== 'completed').length})</h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, overflowY: 'auto', flex: 1 }}>
-                {filteredTasks.filter(t => t.status !== 'completed').map((task, index) => (
-                  <TaskCard key={task.id} task={task} assignedHours={getTaskAssignedHours(task.id)} totalAssignedHours={getTaskAssignedHours(task.id)} onDragStart={setDraggedTaskId} onComplete={completeTask} onEdit={setEditingTask} onDelete={deleteTask} onReorder={(draggedId, targetId) => { const newTasks = [...tasks]; const draggedIndex = newTasks.findIndex(t => t.id === draggedId); const targetIndex = newTasks.findIndex(t => t.id === targetId); if (draggedIndex !== -1 && targetIndex !== -1) { const [draggedTask] = newTasks.splice(draggedIndex, 1); newTasks.splice(targetIndex, 0, draggedTask); setTasks(newTasks); } }} index={index} />
-                ))}
+          ) : (
+            /* Развёрнутое состояние - полная панель */
+            <>
+              <div style={{ background: theme.bgCard, borderRadius: 16, border: `1px solid ${theme.borderPrimary}`, padding: 16, boxShadow: theme.shadow }}>
+                <h3 style={{ fontSize: 14, fontWeight: 600, color: theme.textPrimary, marginBottom: 12 }}>Мои задачи</h3>
+                <TaskForm onAddTask={addTask} />
               </div>
-            </div>
-          )}
-          <CompletedTasksList tasks={filteredTasks} assignments={assignments} days={weeks.flatMap(w => w.days)} onReturnToNew={returnToNew} />
-          {filteredTasks.filter(t => t.status !== 'completed').length === 0 && filteredTasks.filter(t => t.status === 'completed').length === 0 && (
-            <div style={{ background: theme.bgSecondary, borderRadius: 16, border: `1px solid ${theme.borderPrimary}`, padding: 24, textAlign: 'center' }}>
-              <div style={{ fontSize: 32, marginBottom: 8 }}>📋</div>
-              <p style={{ fontSize: 14, color: theme.textTertiary }}>Создайте первую задачу,<br/>чтобы начать планирование</p>
-            </div>
+              
+              {/* Redmine интеграция - временно скрыта из-за проблем с CORS */}
+              {/* <div style={{ background: theme.bgCard, borderRadius: 16, border: `1px solid ${theme.borderPrimary}`, padding: 16, boxShadow: theme.shadow }}>
+                <h3 style={{ fontSize: 14, fontWeight: 600, color: theme.textPrimary, marginBottom: 12 }}>Redmine</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <button
+                    onClick={() => {
+                      if (!redmineSettings) {
+                        setShowRedmineSettings(true);
+                      } else {
+                        setShowRedmineImport(true);
+                      }
+                    }}
+                    style={{
+                      padding: '10px 12px',
+                      borderRadius: 8,
+                      border: 'none',
+                      background: theme.accent1,
+                      color: '#fff',
+                      fontSize: 13,
+                      fontWeight: 500,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                    }}
+                  >
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                    </svg>
+                    {redmineSettings ? 'Импорт задач' : 'Настроить'}
+                  </button>
+                  {redmineSettings && (
+                    <button
+                      onClick={() => setShowRedmineSettings(true)}
+                      style={{
+                        padding: '8px 12px',
+                        borderRadius: 8,
+                        border: `1px solid ${theme.borderPrimary}`,
+                        background: theme.bgSecondary,
+                        color: theme.textSecondary,
+                        fontSize: 12,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Настройки Redmine
+                    </button>
+                  )}
+                </div>
+              </div> */}
+              
+              <SearchFilter searchQuery={searchQuery} onSearchChange={setSearchQuery} statusFilter={statusFilter} onStatusFilterChange={setStatusFilter} />
+              {filteredTasks.filter(t => t.status !== 'completed').length > 0 && (
+                <div style={{ background: theme.bgCard, borderRadius: 16, border: `1px solid ${theme.borderPrimary}`, padding: 16, boxShadow: theme.shadow, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+                  <h3 style={{ fontSize: 14, fontWeight: 600, color: theme.textPrimary, marginBottom: 12, flexShrink: 0 }}>Новые задачи ({filteredTasks.filter(t => t.status !== 'completed').length})</h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, overflowY: 'auto', flex: 1 }}>
+                    {filteredTasks.filter(t => t.status !== 'completed').map((task, index) => (
+                      <TaskCard key={task.id} task={task} assignedHours={getTaskAssignedHours(task.id)} totalAssignedHours={getTaskAssignedHours(task.id)} onDragStart={setDraggedTaskId} onComplete={completeTask} onEdit={setEditingTask} onDelete={deleteTask} onReorder={(draggedId, targetId) => { const newTasks = [...tasks]; const draggedIndex = newTasks.findIndex(t => t.id === draggedId); const targetIndex = newTasks.findIndex(t => t.id === targetId); if (draggedIndex !== -1 && targetIndex !== -1) { const [draggedTask] = newTasks.splice(draggedIndex, 1); newTasks.splice(targetIndex, 0, draggedTask); setTasks(newTasks); } }} index={index} />
+                    ))}
+                  </div>
+                </div>
+              )}
+              <CompletedTasksList tasks={filteredTasks} assignments={assignments} days={weeks.flatMap(w => w.days)} onReturnToNew={returnToNew} />
+              {filteredTasks.filter(t => t.status !== 'completed').length === 0 && filteredTasks.filter(t => t.status === 'completed').length === 0 && (
+                <div style={{ background: theme.bgSecondary, borderRadius: 16, border: `1px solid ${theme.borderPrimary}`, padding: 24, textAlign: 'center' }}>
+                  <div style={{ fontSize: 32, marginBottom: 8 }}>📋</div>
+                  <p style={{ fontSize: 14, color: theme.textTertiary }}>Создайте первую задачу,<br/>чтобы начать планирование</p>
+                </div>
+              )}
+            </>
           )}
         </aside>
 
