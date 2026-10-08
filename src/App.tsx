@@ -10,11 +10,11 @@ import EditTaskModal from './components/EditTaskModal';
 import SearchFilter from './components/SearchFilter';
 import ExportModal from './components/ExportModal';
 import AuthScreen, { Profile } from './components/AuthScreen';
-import RedmineSettingsModal from './components/RedmineSettingsModal';
-import RedmineImportModal from './components/RedmineImportModal';
+// import RedmineSettingsModal from './components/RedmineSettingsModal';
+// import RedmineImportModal from './components/RedmineImportModal';
 import { exportToExcel } from './utils/excelExport';
 import { loadTasks, loadAssignments, saveTasks, saveAssignments, setCurrentProfile } from './services/storageService';
-import { getRedmineSettings, RedmineSettings } from './services/redmineService';
+// import { getRedmineSettings, RedmineSettings } from './services/redmineService';
 import { useTheme } from './ThemeContext';
 
 function App() {
@@ -38,9 +38,9 @@ function App() {
   const [showExportModal, setShowExportModal] = useState(false);
   const [visibleMonth, setVisibleMonth] = useState({ month: now.getMonth(), year: now.getFullYear() });
   const [shouldScrollToCurrentWeek, setShouldScrollToCurrentWeek] = useState(true);
-  const [redmineSettings, setRedmineSettings] = useState<RedmineSettings | null>(null);
-  const [showRedmineSettings, setShowRedmineSettings] = useState(false);
-  const [showRedmineImport, setShowRedmineImport] = useState(false);
+  // const [redmineSettings, setRedmineSettings] = useState<RedmineSettings | null>(null);
+  // const [showRedmineSettings, setShowRedmineSettings] = useState(false);
+  // const [showRedmineImport, setShowRedmineImport] = useState(false);
 
   const toggleHint = () => {
     const newState = !showHint;
@@ -54,9 +54,9 @@ function App() {
     catch (error) { console.error('Export error:', error); alert('Ошибка при экспорте: ' + (error as Error).message); }
   };
 
-  const handleRedmineImport = (importedTasks: Task[]) => {
-    setTasks((prev) => [...prev, ...importedTasks]);
-  };
+  // const handleRedmineImport = (importedTasks: Task[]) => {
+  //   setTasks((prev) => [...prev, ...importedTasks]);
+  // };
 
   useEffect(() => {
     const savedLogin = localStorage.getItem('planner-current-user');
@@ -70,8 +70,8 @@ function App() {
     setAuthChecked(true);
     
     // Загрузка настроек Redmine
-    const settings = getRedmineSettings();
-    if (settings) setRedmineSettings(settings);
+    // const settings = getRedmineSettings();
+    // if (settings) setRedmineSettings(settings);
   }, []);
 
   useEffect(() => {
@@ -360,8 +360,8 @@ function App() {
             <TaskForm onAddTask={addTask} />
           </div>
           
-          {/* Redmine интеграция */}
-          <div style={{ background: theme.bgCard, borderRadius: 16, border: `1px solid ${theme.borderPrimary}`, padding: 16, boxShadow: theme.shadow }}>
+          {/* Redmine интеграция - временно скрыта из-за проблем с CORS */}
+          {/* <div style={{ background: theme.bgCard, borderRadius: 16, border: `1px solid ${theme.borderPrimary}`, padding: 16, boxShadow: theme.shadow }}>
             <h3 style={{ fontSize: 14, fontWeight: 600, color: theme.textPrimary, marginBottom: 12 }}>Redmine</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <button
@@ -408,7 +408,7 @@ function App() {
                 </button>
               )}
             </div>
-          </div>
+          </div> */}
           
           <SearchFilter searchQuery={searchQuery} onSearchChange={setSearchQuery} statusFilter={statusFilter} onStatusFilterChange={setStatusFilter} />
           {filteredTasks.filter(t => t.status !== 'completed').length > 0 && (
@@ -456,7 +456,8 @@ function App() {
 
       {editingTask && <EditTaskModal task={editingTask} onSave={editTask} onCancel={() => setEditingTask(null)} />}
       {showExportModal && <ExportModal onClose={() => setShowExportModal(false)} onExport={handleExport} />}
-      {showRedmineSettings && (
+      {/* Redmine модальные окна - временно скрыты из-за проблем с CORS */}
+      {/* {showRedmineSettings && (
         <RedmineSettingsModal
           onClose={() => setShowRedmineSettings(false)}
           onSave={(settings) => setRedmineSettings(settings)}
@@ -468,7 +469,7 @@ function App() {
           onClose={() => setShowRedmineImport(false)}
           onImport={handleRedmineImport}
         />
-      )}
+      )} */}
 
       <footer style={{ maxWidth: 1800, margin: '32px auto 0', padding: '24px 16px', borderTop: `1px solid ${theme.borderPrimary}` }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, color: theme.textTertiary }}>
