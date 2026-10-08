@@ -562,9 +562,9 @@ function App() {
               
               <SearchFilter searchQuery={searchQuery} onSearchChange={setSearchQuery} statusFilter={statusFilter} onStatusFilterChange={setStatusFilter} />
               {filteredTasks.filter(t => t.status !== 'completed').length > 0 && (
-                <div style={{ background: theme.bgCard, borderRadius: 16, border: `1px solid ${theme.borderPrimary}`, padding: 16, boxShadow: theme.shadow, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+                <div style={{ background: theme.bgCard, borderRadius: 16, border: `1px solid ${theme.borderPrimary}`, padding: 16, boxShadow: theme.shadow, display: 'flex', flexDirection: 'column', minHeight: 0, width: '100%', boxSizing: 'border-box' }}>
                   <h3 style={{ fontSize: 14, fontWeight: 600, color: theme.textPrimary, marginBottom: 12, flexShrink: 0 }}>Новые задачи ({filteredTasks.filter(t => t.status !== 'completed').length})</h3>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, overflowY: 'auto', flex: 1 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, overflowY: 'auto', flex: 1, width: '100%' }}>
                     {filteredTasks.filter(t => t.status !== 'completed').map((task, index) => (
                       <TaskCard key={task.id} task={task} assignedHours={getTaskAssignedHours(task.id)} totalAssignedHours={getTaskAssignedHours(task.id)} onDragStart={setDraggedTaskId} onComplete={completeTask} onEdit={setEditingTask} onDelete={deleteTask} onReorder={(draggedId, targetId) => { const newTasks = [...tasks]; const draggedIndex = newTasks.findIndex(t => t.id === draggedId); const targetIndex = newTasks.findIndex(t => t.id === targetId); if (draggedIndex !== -1 && targetIndex !== -1) { const [draggedTask] = newTasks.splice(draggedIndex, 1); newTasks.splice(targetIndex, 0, draggedTask); setTasks(newTasks); } }} index={index} />
                     ))}
