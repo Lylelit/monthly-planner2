@@ -1,87 +1,16 @@
 @import "tailwindcss";
 
-/* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #4a4a4a; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #5a5a5a; }
 
-::-webkit-scrollbar-track {
-  background: transparent;
-}
+* { scroll-behavior: smooth; }
 
-::-webkit-scrollbar-thumb {
-  background: #4a4a4a;
-  border-radius: 3px;
-}
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
 
-::-webkit-scrollbar-thumb:hover {
-  background: #5a5a5a;
-}
+[draggable="true"] { -webkit-user-select: none; user-select: none; }
+[draggable="true"]:active { opacity: 1 !important; }
 
-/* Smooth transitions */
-* {
-  scroll-behavior: smooth;
-}
-
-/* Animations */
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: scale(0.95); }
-  to { opacity: 1; transform: scale(1); }
-}
-
-/* Drag ghost styling */
-[draggable="true"] {
-  -webkit-user-select: none;
-  user-select: none;
-}
-
-/* Remove opacity during drag */
-[draggable="true"]:active {
-  opacity: 1 !important;
-}
-
-/* Drag placeholder indicator */
-.drag-placeholder {
-  height: 4px;
-  background: #3996D3;
-  border-radius: 2px;
-  margin: 4px 0;
-  transition: all 0.2s ease;
-  animation: pulse 1s infinite;
-}
-
-.drag-placeholder-above {
-  margin-top: 8px;
-}
-
-.drag-placeholder-below {
-  margin-bottom: 8px;
-}
-
-/* Better focus styles */
-button:focus-visible,
-input:focus-visible {
-  outline: 2px solid #3996D3;
-  outline-offset: 2px;
-}
-
-/* Base styles */
-body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
+body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif; -webkit-font-smoothing: antialiased; }

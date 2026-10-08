@@ -7,9 +7,8 @@ export function getMonthWeeks(year: number, month: number): Week[] {
   const firstDay = new Date(year, month, 1);
   const lastDay = new Date(year, month + 1, 0);
 
-  // Find the Monday of the first week
   let current = new Date(firstDay);
-  const dayOfWeek = current.getDay(); // 0=Sun, 1=Mon, ...
+  const dayOfWeek = current.getDay();
   const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
   current.setDate(current.getDate() + diff);
 
@@ -27,16 +26,12 @@ export function getMonthWeeks(year: number, month: number): Week[] {
       });
       current.setDate(current.getDate() + 1);
     }
-    // Уникальный ID недели с учётом года и месяца
     weeks.push({
       id: `week-${year}-${month}-${weekIndex}`,
       days,
     });
     weekIndex++;
-    
-    // Skip weekend (Saturday and Sunday)
     current.setDate(current.getDate() + 2);
-    
     if (current > lastDay && weekIndex > 0) break;
   }
 

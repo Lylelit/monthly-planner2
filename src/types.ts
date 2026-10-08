@@ -21,9 +21,10 @@ export interface TaskAssignment {
 export interface Day {
   id: string;
   date: Date;
-  dayOfWeek: number; // 1-5 (Mon-Fri)
+  dayOfWeek: number;
   isWorkingDay: boolean;
-  status?: 'working' | 'vacation' | 'holiday';
+  status?: 'working' | 'vacation' | 'holiday' | 'short';
+  shortHours?: number;
 }
 
 export interface Week {

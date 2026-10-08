@@ -1,5 +1,5 @@
 import { Task, TaskAssignment } from '../types';
-import { getProfileData, saveProfileData, Profile } from '../components/AuthScreen';
+import { Profile } from '../components/AuthScreen';
 
 let currentProfile: Profile | null = null;
 
@@ -15,30 +15,46 @@ export function getStorageMode(): 'local' {
   return 'local';
 }
 
-// Загрузка задач текущего профиля
 export async function loadTasks(): Promise<Task[]> {
   if (!currentProfile) return [];
   const data = getProfileData(currentProfile.login);
   return data.tasks || [];
 }
 
-// Загрузка назначений текущего профиля
 export async function loadAssignments(): Promise<TaskAssignment[]> {
   if (!currentProfile) return [];
   const data = getProfileData(currentProfile.login);
   return data.assignments || [];
 }
 
-// Сохранение задач текущего профиля
 export async function saveTasks(tasks: Task[]): Promise<void> {
   if (!currentProfile) return;
   const data = getProfileData(currentProfile.login);
   saveProfileData(currentProfile.login, { ...data, tasks });
 }
 
-// Сохранение назначений текущего профиля
 export async function saveAssignments(assignments: TaskAssignment[]): Promise<void> {
   if (!currentProfile) return;
   const data = getProfileData(currentProfile.login);
   saveProfileData(currentProfile.login, { ...data, assignments });
+}
+
+interface ProfileData {
+  tasks: Task[];
+  assignments: TaskAssignment[];
+}
+
+const DATA_KEY = 'planner-data-';
+
+export function getProfileData(login: string): ProfileData {
+  try {
+    const saved = localStorage.getItem(DATA_KEY + login);
+    return saved ? JSON.parse(saved) : { tasks: [], assignments: [] };
+  } catch {
+    return { tasks: [], assignments: [] };
+  }
+}
+
+export function saveProfileData(login: string, data: ProfileData) {
+  localStorage.setItem(DATA_KEY + login, JSON.stringify(data));
 }

@@ -2,55 +2,27 @@ import ExcelJS from 'exceljs';
 import { Task, TaskAssignment } from '../types';
 import { formatHours } from './timeFormat';
 
-// Маппинг цветов на названия
 const COLOR_NAMES: Record<string, string> = {
-  '#6366f1': 'Индиго',
-  '#8b5cf6': 'Фиолетовый',
-  '#ec4899': 'Розовый',
-  '#f43f5e': 'Красный',
-  '#f97316': 'Оранжевый',
-  '#eab308': 'Жёлтый',
-  '#22c55e': 'Зелёный',
-  '#14b8a6': 'Бирюзовый',
-  '#06b6d4': 'Циан',
-  '#3b82f6': 'Синий',
+  '#6366f1': 'Индиго', '#8b5cf6': 'Фиолетовый', '#ec4899': 'Розовый', '#f43f5e': 'Красный',
+  '#f97316': 'Оранжевый', '#eab308': 'Жёлтый', '#22c55e': 'Зелёный', '#14b8a6': 'Бирюзовый',
+  '#06b6d4': 'Циан', '#3b82f6': 'Синий',
 };
 
-export async function exportToExcel(
-  tasks: Task[],
-  assignments: TaskAssignment[],
-  startDate: string,
-  endDate: string
-) {
-  console.log('exportToExcel called with:', { tasks, assignments, startDate, endDate });
-  
-  // Фильтруем задачи по периоду завершения
+export async function exportToExcel(tasks: Task[], assignments: TaskAssignment[], startDate: string, endDate: string) {
   const filteredTasks = tasks.filter(task => {
-    if (task.status !== 'completed' || !task.completedAt) {
-      console.log('Task filtered out (not completed or no completedAt):', task);
-      return false;
-    }
+    if (task.status !== 'completed' || !task.completedAt) return false;
     const completedDate = new Date(task.completedAt);
     const start = new Date(startDate);
     const end = new Date(endDate);
-    end.setHours(23, 59, 59, 999); // Включаем весь последний день
-    const isInPeriod = completedDate >= start && completedDate <= end;
-    console.log('Task date check:', { task: task.title, completedAt: task.completedAt, isInPeriod });
-    return isInPeriod;
+    end.setHours(23, 59, 59, 999);
+    return completedDate >= start && completedDate <= end;
   });
 
-  console.log('Filtered tasks:', filteredTasks);
+  if (filteredTasks.length === 0) { alert('Нет выполненных задач за выбранный период'); return; }
 
-  if (filteredTasks.length === 0) {
-    alert('Нет выполненных задач за выбранный период');
-    return;
-  }
-
-  // Создаём workbook
   const workbook = new ExcelJS.Workbook();
   const worksheet = workbook.addWorksheet('Выполненные задачи');
 
-  // Настраиваем колонки
   worksheet.columns = [
     { header: 'Дата создания', key: 'createdAt', width: 18 },
     { header: 'Дата завершения', key: 'completedAt', width: 18 },
@@ -61,89 +33,30 @@ export async function exportToExcel(
     { header: 'Ссылка', key: 'link', width: 40 },
   ];
 
-  // Стилизуем заголовки
   const headerRow = worksheet.getRow(1);
   headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-  headerRow.fill = {
-    type: 'pattern',
-    pattern: 'solid',
-    fgColor: { argb: 'FF3996D3' },
-  };
+  headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF3996D3' } };
   headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
   headerRow.height = 20;
 
-  // Добавляем данные
   filteredTasks.forEach(task => {
-    // Считаем затраченное время
     const taskAssignments = assignments.filter(a => a.taskId === task.id);
     const spentTime = taskAssignments.reduce((sum, a) => sum + a.hours, 0);
-
-    // Получаем название цвета
     const colorName = COLOR_NAMES[task.color] || task.color;
+    const createdAt = task.createdAt ? new Date(task.createdAt).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+    const completedAt = task.completedAt ? new Date(task.completedAt).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
 
-    // Форматируем даты
-    const createdAt = task.createdAt 
-      ? new Date(task.createdAt).toLocaleDateString('ru-RU', {
-          day: '2-digit',
-          month: '2-digit',
-          year: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit'
-        })
-      : '';
-
-    const completedAt = task.completedAt
-      ? new Date(task.completedAt).toLocaleDateString('ru-RU', {
-          day: '2-digit',
-          month: '2-digit',
-          year: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit'
-        })
-      : '';
-
-    // Добавляем строку
-    const row = worksheet.addRow({
-      createdAt,
-      completedAt,
-      spentTime: formatHours(spentTime),
-      color: colorName,
-      title: task.title,
-      description: task.description || '',
-      link: task.link || '',
-    });
-
-    // Применяем цвет к ячейке "Цвет"
+    const row = worksheet.addRow({ createdAt, completedAt, spentTime: formatHours(spentTime), color: colorName, title: task.title, description: task.description || '', link: task.link || '' });
     const colorCell = row.getCell('color');
-    colorCell.fill = {
-      type: 'pattern',
-      pattern: 'solid',
-      fgColor: { argb: task.color.replace('#', 'FF') },
-    };
-    
-    // Определяем цвет текста для контраста
+    colorCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: task.color.replace('#', 'FF') } };
     const brightness = getBrightness(task.color);
-    colorCell.font = {
-      color: { argb: brightness > 128 ? 'FF000000' : 'FFFFFFFF' },
-      bold: true
-    };
-
-    // Выравнивание
+    colorCell.font = { color: { argb: brightness > 128 ? 'FF000000' : 'FFFFFFFF' }, bold: true };
     row.alignment = { vertical: 'middle', wrapText: true };
     row.height = 20;
   });
 
-  // Генерируем файл
-  console.log('Generating Excel file...');
   const buffer = await workbook.xlsx.writeBuffer();
-  console.log('Buffer generated, size:', buffer.byteLength);
-  
-  const blob = new Blob([buffer], {
-    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-  });
-  console.log('Blob created, size:', blob.size);
-
-  // Скачиваем файл
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   const url = window.URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
@@ -152,10 +65,8 @@ export async function exportToExcel(
   link.click();
   document.body.removeChild(link);
   window.URL.revokeObjectURL(url);
-  console.log('File download initiated');
 }
 
-// Функция для определения яркости цвета
 function getBrightness(hexColor: string): number {
   const hex = hexColor.replace('#', '');
   const r = parseInt(hex.substr(0, 2), 16);
