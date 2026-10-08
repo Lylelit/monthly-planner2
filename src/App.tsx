@@ -163,33 +163,6 @@ function App() {
     return uniqueWeeks;
   }, [currentYear]);
 
-  // Автоматический скролл к текущей неделе при загрузке
-  useEffect(() => {
-    if (!isLoading && weeks.length > 0 && shouldScrollToCurrentWeek) {
-      // Небольшая задержка для гарантии, что DOM полностью отрендерился
-      const timer = setTimeout(() => {
-        if (currentWeekRef.current && weeksContainerRef.current) {
-          const container = weeksContainerRef.current;
-          const weekElement = currentWeekRef.current;
-          
-          // Получаем позицию элемента относительно контейнера
-          const containerRect = container.getBoundingClientRect();
-          const weekRect = weekElement.getBoundingClientRect();
-          
-          // Вычисляем позицию для скролла (текущая неделя должна быть второй сверху)
-          const scrollTop = weekRect.top - containerRect.top + container.scrollTop - 20;
-          
-          container.scrollTo({
-            top: scrollTop,
-            behavior: 'smooth'
-          });
-        }
-      }, 200);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [weeks, isLoading, shouldScrollToCurrentWeek]);
-
   // Определяем текущую неделю
   const currentWeekId = useMemo(() => {
     const today = new Date();
@@ -201,6 +174,49 @@ function App() {
     );
     return week?.id || null;
   }, [weeks]);
+
+  // Автоматический скролл к текущей неделе при загрузке
+  useEffect(() => {
+    if (!isLoading && weeks.length > 0 && shouldScrollToCurrentWeek) {
+      // Увеличенная задержка для гарантии, что DOM полностью отрендерился
+      const timer = setTimeout(() => {
+        const container = weeksContainerRef.current;
+        const weekElement = currentWeekRef.current;
+        
+        console.log('Attempting to scroll:', {
+          hasContainer: !!container,
+          hasWeekElement: !!weekElement,
+          currentWeekId
+        });
+        
+        if (container && weekElement) {
+          // Получаем позицию элемента относительно контейнера
+          const containerRect = container.getBoundingClientRect();
+          const weekRect = weekElement.getBoundingClientRect();
+          
+          console.log('Scroll positions:', {
+            containerTop: containerRect.top,
+            weekTop: weekRect.top,
+            containerScrollTop: container.scrollTop
+          });
+          
+          // Вычисляем позицию для скролла (текущая неделя должна быть второй сверху)
+          const scrollTop = weekRect.top - containerRect.top + container.scrollTop - 20;
+          
+          console.log('Scrolling to:', scrollTop);
+          
+          container.scrollTo({
+            top: scrollTop,
+            behavior: 'smooth'
+          });
+        } else {
+          console.warn('Cannot scroll - refs not ready');
+        }
+      }, 300);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [weeks, isLoading, shouldScrollToCurrentWeek, currentWeekId]);
 
   // Обработчик скролла для определения активного месяца
   useEffect(() => {
