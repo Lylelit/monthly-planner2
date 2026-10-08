@@ -218,79 +218,103 @@ function App() {
     }
   }, [weeks, isLoading, shouldScrollToCurrentWeek, currentWeekId]);
 
+  // Ref для хранения актуальных значений weeks и visibleMonth
+  const weeksRef = useRef(weeks);
+  const visibleMonthRef = useRef(visibleMonth);
+  
+  useEffect(() => {
+    weeksRef.current = weeks;
+    visibleMonthRef.current = visibleMonth;
+  }, [weeks, visibleMonth]);
+
   // Обработчик скролла для определения активного месяца
   useEffect(() => {
-    const container = weeksContainerRef.current;
-    if (!container) {
-      console.log('Scroll handler: container not ready');
-      return;
-    }
+    // Используем requestAnimationFrame для гарантии что DOM отрендерился
+    const attachScrollHandler = () => {
+      const container = weeksContainerRef.current;
+      if (!container) {
+        // Если контейнер ещё не готов, пробуем снова через кадр
+        requestAnimationFrame(attachScrollHandler);
+        return;
+      }
 
-    console.log('Scroll handler: attached to container');
+      console.log('Scroll handler: attached to container');
 
-    const handleScroll = () => {
-      const containerRect = container.getBoundingClientRect();
-      const containerCenter = containerRect.top + containerRect.height / 2;
-      
-      // Находим неделю, которая находится ближе всего к центру контейнера
-      let closestWeek: Week | undefined;
-      let minDistance = Infinity;
-      
-      weeks.forEach(week => {
-        const weekElement = document.getElementById(`week-${week.id}`);
-        if (weekElement) {
-          const weekRect = weekElement.getBoundingClientRect();
-          const weekCenter = weekRect.top + weekRect.height / 2;
-          const distance = Math.abs(weekCenter - containerCenter);
+      const handleScroll = () => {
+        const containerRect = container.getBoundingClientRect();
+        const containerCenter = containerRect.top + containerRect.height / 2;
+        
+        // Находим неделю, которая находится ближе всего к центру контейнера
+        let closestWeek: Week | undefined;
+        let minDistance = Infinity;
+        
+        weeksRef.current.forEach(week => {
+          const weekElement = document.getElementById(`week-${week.id}`);
+          if (weekElement) {
+            const weekRect = weekElement.getBoundingClientRect();
+            const weekCenter = weekRect.top + weekRect.height / 2;
+            const distance = Math.abs(weekCenter - containerCenter);
+            
+            if (distance < minDistance) {
+              minDistance = distance;
+              closestWeek = week;
+            }
+          }
+        });
+        
+        // Определяем месяц ближайшей недели по большинству дней
+        if (closestWeek) {
+          // Считаем сколько дней из недели принадлежит каждому месяцу
+          const monthCounts: Record<string, number> = {};
+          closestWeek.days.forEach(day => {
+            const dayDate = new Date(day.date);
+            const key = `${dayDate.getFullYear()}-${dayDate.getMonth()}`;
+            monthCounts[key] = (monthCounts[key] || 0) + 1;
+          });
           
-          if (distance < minDistance) {
-            minDistance = distance;
-            closestWeek = week;
+          // Находим месяц с максимальным количеством дней
+          let maxMonth = '';
+          let maxCount = 0;
+          Object.entries(monthCounts).forEach(([key, count]) => {
+            if (count > maxCount) {
+              maxCount = count;
+              maxMonth = key;
+            }
+          });
+          
+          // Парсим год и месяц
+          const [yearStr, monthStr] = maxMonth.split('-');
+          const year = parseInt(yearStr);
+          const month = parseInt(monthStr);
+          
+          const currentVisibleMonth = visibleMonthRef.current;
+          console.log('Scroll detected:', { closestWeek: closestWeek.id, detectedMonth: month, detectedYear: year, currentVisibleMonth: currentVisibleMonth.month, currentVisibleYear: currentVisibleMonth.year });
+          
+          // Обновляем видимый месяц если он изменился
+          if (month !== currentVisibleMonth.month || year !== currentVisibleMonth.year) {
+            console.log('Updating visible month to:', { month, year });
+            setVisibleMonth({ month, year });
           }
         }
-      });
+      };
+
+      container.addEventListener('scroll', handleScroll);
       
-      // Определяем месяц ближайшей недели по большинству дней
-      if (closestWeek) {
-        // Считаем сколько дней из недели принадлежит каждому месяцу
-        const monthCounts: Record<string, number> = {};
-        closestWeek.days.forEach(day => {
-          const dayDate = new Date(day.date);
-          const key = `${dayDate.getFullYear()}-${dayDate.getMonth()}`;
-          monthCounts[key] = (monthCounts[key] || 0) + 1;
-        });
-        
-        // Находим месяц с максимальным количеством дней
-        let maxMonth = '';
-        let maxCount = 0;
-        Object.entries(monthCounts).forEach(([key, count]) => {
-          if (count > maxCount) {
-            maxCount = count;
-            maxMonth = key;
-          }
-        });
-        
-        // Парсим год и месяц
-        const [yearStr, monthStr] = maxMonth.split('-');
-        const year = parseInt(yearStr);
-        const month = parseInt(monthStr);
-        
-        console.log('Scroll detected:', { closestWeek: closestWeek.id, detectedMonth: month, detectedYear: year, currentVisibleMonth: visibleMonth.month, currentVisibleYear: visibleMonth.year });
-        
-        // Обновляем видимый месяц если он изменился
-        if (month !== visibleMonth.month || year !== visibleMonth.year) {
-          console.log('Updating visible month to:', { month, year });
-          setVisibleMonth({ month, year });
-        }
+      // Сохраняем ссылку на обработчик для cleanup
+      (container as any)._scrollHandler = handleScroll;
+    };
+
+    attachScrollHandler();
+
+    return () => {
+      const container = weeksContainerRef.current;
+      if (container && (container as any)._scrollHandler) {
+        console.log('Scroll handler: detached from container');
+        container.removeEventListener('scroll', (container as any)._scrollHandler);
+        delete (container as any)._scrollHandler;
       }
     };
-
-    container.addEventListener('scroll', handleScroll);
-    return () => {
-      console.log('Scroll handler: detached from container');
-      container.removeEventListener('scroll', handleScroll);
-    };
-  }, [weeks, visibleMonth]);
+  }, []); // Пустой массив зависимостей - добавляется один раз при монтировании
 
   const prevMonth = () => {
     if (currentMonth === 0) { setCurrentMonth(11); setCurrentYear(currentYear - 1); }
