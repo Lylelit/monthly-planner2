@@ -126,18 +126,15 @@ function App() {
   const weeksContainerRef = useRef<HTMLDivElement>(null);
   const currentWeekRef = useRef<HTMLDivElement>(null);
 
-  // Загружаем недели из 3 месяцев: предыдущий, текущий, следующий
+  // Загружаем все недели текущего года
   const weeks = useMemo(() => {
-    // Вычисляем предыдущий и следующий месяцы
-    const prevMonthDate = new Date(currentYear, currentMonth - 1, 1);
-    const nextMonthDate = new Date(currentYear, currentMonth + 1, 1);
+    const allWeeks: Week[] = [];
     
-    const prevMonthWeeks = getMonthWeeks(prevMonthDate.getFullYear(), prevMonthDate.getMonth());
-    const currentMonthWeeks = getMonthWeeks(currentYear, currentMonth);
-    const nextMonthWeeks = getMonthWeeks(nextMonthDate.getFullYear(), nextMonthDate.getMonth());
-    
-    // Объединяем все недели
-    const allWeeks = [...prevMonthWeeks, ...currentMonthWeeks, ...nextMonthWeeks];
+    // Генерируем недели для всех 12 месяцев года
+    for (let month = 0; month < 12; month++) {
+      const monthWeeks = getMonthWeeks(currentYear, month);
+      allWeeks.push(...monthWeeks);
+    }
     
     // Убираем дублирующиеся недели (недели с одинаковым первым днём)
     const uniqueWeeks = allWeeks.filter((week, index, self) => {
@@ -156,19 +153,15 @@ function App() {
     
     // Если нашли текущую неделю, перестраиваем массив так, чтобы она была второй
     if (currentWeekIndex !== -1) {
-      // Берём недели до текущей (включая предыдущий месяц)
       const weeksBefore = uniqueWeeks.slice(0, currentWeekIndex);
-      // Текущая неделя
       const currentWeek = uniqueWeeks[currentWeekIndex];
-      // Недели после текущей
       const weeksAfter = uniqueWeeks.slice(currentWeekIndex + 1);
       
-      // Собираем: все недели до текущей, текущая неделя (вторая позиция), все недели после
       return [...weeksBefore, currentWeek, ...weeksAfter];
     }
     
     return uniqueWeeks;
-  }, [currentYear, currentMonth]);
+  }, [currentYear]);
 
   // Автоматический скролл к текущей неделе при загрузке
   useEffect(() => {
@@ -196,6 +189,18 @@ function App() {
       return () => clearTimeout(timer);
     }
   }, [weeks, isLoading, shouldScrollToCurrentWeek]);
+
+  // Определяем текущую неделю
+  const currentWeekId = useMemo(() => {
+    const today = new Date();
+    const week = weeks.find(w => 
+      w.days.some(day => {
+        const dayDate = new Date(day.date);
+        return dayDate.toDateString() === today.toDateString();
+      })
+    );
+    return week?.id || null;
+  }, [weeks]);
 
   // Обработчик скролла для определения активного месяца
   useEffect(() => {
@@ -969,6 +974,7 @@ function App() {
                     isMobile={isMobile}
                     isCurrentWeek={isCurrentWeek}
                     visibleMonth={visibleMonth}
+                    currentWeekId={currentWeekId}
                   />
                 </div>
               );
@@ -1049,9 +1055,10 @@ interface WeekRowProps {
   isMobile: boolean;
   isCurrentWeek?: boolean;
   visibleMonth: { month: number; year: number };
+  currentWeekId: string | null;
 }
 
-function WeekRow({ week, tasks, assignments, dayStatuses, onDropTask, onRemoveAssignment, onSplitAssignment, onMoveAssignment, onSetDayStatus, onReorderAssignment, onMergeAssignments, isMobile, isCurrentWeek, visibleMonth }: WeekRowProps & { isMobile: boolean }) {
+function WeekRow({ week, tasks, assignments, dayStatuses, onDropTask, onRemoveAssignment, onSplitAssignment, onMoveAssignment, onSetDayStatus, onReorderAssignment, onMergeAssignments, isMobile, isCurrentWeek, visibleMonth, currentWeekId }: WeekRowProps & { isMobile: boolean }) {
   const { theme } = useTheme();
   
   return (
@@ -1071,7 +1078,15 @@ function WeekRow({ week, tasks, assignments, dayStatuses, onDropTask, onRemoveAs
         {week.days.map((day) => {
           // Определяем активность каждого дня динамически
           const dayDate = new Date(day.date);
+          
+          // Текущая неделя всегда активна (кроме отпусков/выходных)
+          const isCurrentWeekDay = week.id === currentWeekId;
+          
+          // Для остальных недель - активность по видимому месяцу
           const isDayInActiveMonth = dayDate.getMonth() === visibleMonth.month && dayDate.getFullYear() === visibleMonth.year;
+          
+          // День активен если это текущая неделя ИЛИ день в активном месяце
+          const isActiveDay = isCurrentWeekDay || isDayInActiveMonth;
           
           return (
             <DayColumn
@@ -1087,7 +1102,7 @@ function WeekRow({ week, tasks, assignments, dayStatuses, onDropTask, onRemoveAs
               onReorderAssignment={onReorderAssignment}
               onMergeAssignments={onMergeAssignments}
               isMobile={isMobile}
-              isActiveMonth={isDayInActiveMonth}
+              isActiveMonth={isActiveDay}
             />
           );
         })}
