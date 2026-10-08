@@ -54,21 +54,31 @@ export function saveRedmineSettings(settings: RedmineSettings): void {
 }
 
 export async function fetchRedmineTasks(settings: RedmineSettings): Promise<RedmineTask[]> {
-  const url = `${settings.baseUrl}/issues.json?assigned_to_id=${settings.userId}&limit=100&status_id=*`;
+  // Используем прокси для локальной разработки, прямой URL для production
+  const isDevelopment = import.meta.env.DEV;
+  const baseUrl = isDevelopment ? '/redmine-api' : settings.baseUrl;
+  const url = `${baseUrl}/issues.json?assigned_to_id=${settings.userId}&limit=100&status_id=*`;
   
-  const response = await fetch(url, {
-    headers: {
-      'X-Redmine-API-Key': settings.apiKey,
-      'Content-Type': 'application/json',
-    },
-  });
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'X-Redmine-API-Key': settings.apiKey,
+        'Content-Type': 'application/json',
+      },
+    });
 
-  if (!response.ok) {
-    throw new Error(`Ошибка подключения к Redmine: ${response.status} ${response.statusText}`);
+    if (!response.ok) {
+      throw new Error(`Ошибка подключения к Redmine: ${response.status} ${response.statusText}`);
+    }
+
+    const data: RedmineIssuesResponse = await response.json();
+    return data.issues;
+  } catch (error) {
+    if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+      throw new Error('Ошибка CORS: Redmine не разрешает запросы с этого домена. Попросите администраторов настроить CORS или используйте локальную разработку.');
+    }
+    throw error;
   }
-
-  const data: RedmineIssuesResponse = await response.json();
-  return data.issues;
 }
 
 export function getRedmineTaskUrl(baseUrl: string, taskId: number): string {
