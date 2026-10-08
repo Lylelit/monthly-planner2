@@ -45,8 +45,8 @@ export default function DayColumn({ day, tasks, assignments, onDropTask, onRemov
   const isNonWorking = isVacation || isHoliday;
   const isToday = new Date().toDateString() === day.date.toDateString();
 
-  const freeHoursColor = isShort ? theme.accent1 : (freeHours === 0 ? theme.danger : freeHours <= 2 ? theme.warning : theme.success);
-  const freeHoursBg = isShort ? `${theme.accent1}15` : (freeHours === 0 ? `${theme.danger}15` : freeHours <= 2 ? `${theme.warning}15` : `${theme.success}15`);
+  const freeHoursColor = freeHours === 0 ? theme.danger : freeHours <= 2 ? theme.warning : theme.success;
+  const freeHoursBg = freeHours === 0 ? `${theme.danger}15` : freeHours <= 2 ? `${theme.warning}15` : `${theme.success}15`;
 
   const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setIsDragOver(true); };
   const handleDragLeave = (e: React.DragEvent) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsDragOver(false); };
@@ -96,6 +96,7 @@ export default function DayColumn({ day, tasks, assignments, onDropTask, onRemov
             <span style={{ fontSize: 14, fontWeight: 700, color: isToday ? theme.accent1 : theme.textPrimary }}>{formatDate(day.date)}</span>
             {isVacation && <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 6px', borderRadius: 4, background: theme.warning, color: '#fff' }}>Отпуск</span>}
             {isHoliday && <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 6px', borderRadius: 4, background: theme.accent2, color: '#fff' }}>Выходной</span>}
+            {isShort && <span title="Короткий день" style={{ fontSize: 10, fontWeight: 600, padding: '2px 6px', borderRadius: 4, background: theme.accent1, color: '#fff' }}>К.д.</span>}
 
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
