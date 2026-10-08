@@ -45,8 +45,8 @@ export default function DayColumn({ day, tasks, assignments, onDropTask, onRemov
   const isNonWorking = isVacation || isHoliday;
   const isToday = new Date().toDateString() === day.date.toDateString();
 
-  const freeHoursColor = freeHours === 0 ? theme.danger : freeHours <= 2 ? theme.warning : theme.success;
-  const freeHoursBg = freeHours === 0 ? `${theme.danger}15` : freeHours <= 2 ? `${theme.warning}15` : `${theme.success}15`;
+  const freeHoursColor = isShort ? theme.accent1 : (freeHours === 0 ? theme.danger : freeHours <= 2 ? theme.warning : theme.success);
+  const freeHoursBg = isShort ? `${theme.accent1}15` : (freeHours === 0 ? `${theme.danger}15` : freeHours <= 2 ? `${theme.warning}15` : `${theme.success}15`);
 
   const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setIsDragOver(true); };
   const handleDragLeave = (e: React.DragEvent) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsDragOver(false); };
@@ -82,21 +82,21 @@ export default function DayColumn({ day, tasks, assignments, onDropTask, onRemov
   return (
     <div onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}
       style={{ position: 'relative', display: 'flex', flexDirection: 'column', borderRadius: 12, minHeight: isMobile ? 120 : 180, transition: 'all 0.2s',
-        background: !isActiveMonth ? theme.bgTertiary : isVacation ? `${theme.warning}10` : isHoliday ? `${theme.accent2}10` : isShort ? `${theme.accent3}10` : cardBg,
-        border: `${isToday ? '3px' : '1px'} solid ${!isActiveMonth ? theme.borderPrimary : isToday ? theme.accent1 : isDragOver ? theme.accent1 : isVacation ? theme.warning : isHoliday ? theme.accent2 : isShort ? theme.accent3 : theme.borderPrimary}`,
+        background: !isActiveMonth ? theme.bgTertiary : isVacation ? `${theme.warning}10` : isHoliday ? `${theme.accent2}10` : cardBg,
+        border: `${isToday ? '3px' : '1px'} solid ${!isActiveMonth ? theme.borderPrimary : isToday ? theme.accent1 : isDragOver ? theme.accent1 : isVacation ? theme.warning : isHoliday ? theme.accent2 : theme.borderPrimary}`,
         opacity: !isActiveMonth ? 0.4 : isNonWorking ? 0.7 : 1,
         boxShadow: isDragOver ? `0 0 0 2px ${theme.accent1}30` : theme.shadow,
         overflow: 'visible', width: isMobile ? '100%' : undefined }}>
       
       {/* Header */}
-      <div style={{ padding: '10px 12px', borderBottom: `1px solid ${theme.borderPrimary}`, background: isToday ? `${theme.accent1}08` : isVacation ? `${theme.warning}15` : isHoliday ? `${theme.accent2}15` : isShort ? `${theme.accent3}15` : 'transparent', borderRadius: '12px 12px 0 0', position: 'relative' }}>
+      <div style={{ padding: '10px 12px', borderBottom: `1px solid ${theme.borderPrimary}`, background: isToday ? `${theme.accent1}08` : isVacation ? `${theme.warning}15` : isHoliday ? `${theme.accent2}15` : 'transparent', borderRadius: '12px 12px 0 0', position: 'relative' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1, color: theme.textTertiary }}>{getDayName(day.dayOfWeek)}</span>
             <span style={{ fontSize: 14, fontWeight: 700, color: isToday ? theme.accent1 : theme.textPrimary }}>{formatDate(day.date)}</span>
             {isVacation && <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 6px', borderRadius: 4, background: theme.warning, color: '#fff' }}>Отпуск</span>}
             {isHoliday && <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 6px', borderRadius: 4, background: theme.accent2, color: '#fff' }}>Выходной</span>}
-            {isShort && <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 6px', borderRadius: 4, background: theme.accent3, color: '#fff' }}>{day.shortHours}ч</span>}
+            {isShort && <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 6px', borderRadius: 4, background: theme.accent1, color: '#fff' }}>{day.shortHours}ч</span>}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             {isActiveMonth && !isNonWorking && <div style={{ fontSize: 12, fontWeight: 600, padding: '2px 8px', borderRadius: 12, background: freeHoursBg, color: freeHoursColor }}>{formatHours(freeHours)}</div>}
@@ -105,7 +105,7 @@ export default function DayColumn({ day, tasks, assignments, onDropTask, onRemov
             </button>
           </div>
         </div>
-        {isActiveMonth && !isNonWorking && <div style={{ marginTop: 8, height: 4, background: theme.bgTertiary, borderRadius: 2, overflow: 'hidden' }}><div style={{ height: '100%', borderRadius: 2, transition: 'width 0.5s', width: `${Math.min(fillPercent, 100)}%`, background: fillPercent >= 100 ? theme.danger : fillPercent >= 75 ? theme.warning : theme.success }} /></div>}
+        {isActiveMonth && !isNonWorking && <div style={{ marginTop: 8, height: 4, background: theme.bgTertiary, borderRadius: 2, overflow: 'hidden' }}><div style={{ height: '100%', borderRadius: 2, transition: 'width 0.5s', width: `${Math.min(fillPercent, 100)}%`, background: isShort ? theme.accent1 : (fillPercent >= 100 ? theme.danger : fillPercent >= 75 ? theme.warning : theme.success) }} /></div>}
 
         {/* Day status menu */}
         {showDayMenu && (
@@ -113,7 +113,7 @@ export default function DayColumn({ day, tasks, assignments, onDropTask, onRemov
             <button onClick={() => { onSetDayStatus(day.id, 'working'); setShowDayMenu(false); }} disabled={!isNonWorking && !isShort} style={{ display: 'block', width: '100%', padding: '8px 12px', border: 'none', background: !isNonWorking && !isShort ? theme.bgSecondary : 'transparent', color: !isNonWorking && !isShort ? theme.textPrimary : theme.textTertiary, fontSize: 13, textAlign: 'left', cursor: !isNonWorking && !isShort ? 'default' : 'pointer', borderRadius: 4 }}>Рабочий день</button>
             <button onClick={() => { onSetDayStatus(day.id, 'vacation'); setShowDayMenu(false); }} disabled={isVacation} style={{ display: 'block', width: '100%', padding: '8px 12px', border: 'none', background: isVacation ? `${theme.warning}20` : 'transparent', color: isVacation ? theme.warning : theme.textPrimary, fontSize: 13, textAlign: 'left', cursor: isVacation ? 'default' : 'pointer', borderRadius: 4 }}>Отпуск</button>
             <button onClick={() => { onSetDayStatus(day.id, 'holiday'); setShowDayMenu(false); }} disabled={isHoliday} style={{ display: 'block', width: '100%', padding: '8px 12px', border: 'none', background: isHoliday ? `${theme.accent2}20` : 'transparent', color: isHoliday ? theme.accent2 : theme.textPrimary, fontSize: 13, textAlign: 'left', cursor: isHoliday ? 'default' : 'pointer', borderRadius: 4 }}>Выходной</button>
-            <button onClick={() => { setShowDayMenu(false); setShowShortDayInput(true); setShortDayHours(day.shortHours?.toString() || '6'); }} disabled={isShort} style={{ display: 'block', width: '100%', padding: '8px 12px', border: 'none', background: isShort ? `${theme.accent3}20` : 'transparent', color: isShort ? theme.accent3 : theme.textPrimary, fontSize: 13, textAlign: 'left', cursor: isShort ? 'default' : 'pointer', borderRadius: 4 }}>Короткий день</button>
+            <button onClick={() => { setShowDayMenu(false); setShowShortDayInput(true); setShortDayHours(day.shortHours?.toString() || '6'); }} disabled={isShort} style={{ display: 'block', width: '100%', padding: '8px 12px', border: 'none', background: isShort ? `${theme.accent1}20` : 'transparent', color: isShort ? theme.accent1 : theme.textPrimary, fontSize: 13, textAlign: 'left', cursor: isShort ? 'default' : 'pointer', borderRadius: 4 }}>Короткий день</button>
           </div>
         )}
       </div>
