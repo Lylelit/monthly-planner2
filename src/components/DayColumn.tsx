@@ -96,7 +96,7 @@ export default function DayColumn({ day, tasks, assignments, onDropTask, onRemov
             <span style={{ fontSize: 14, fontWeight: 700, color: isToday ? theme.accent1 : theme.textPrimary }}>{formatDate(day.date)}</span>
             {isVacation && <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 6px', borderRadius: 4, background: theme.warning, color: '#fff' }}>Отпуск</span>}
             {isHoliday && <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 6px', borderRadius: 4, background: theme.accent2, color: '#fff' }}>Выходной</span>}
-            {isShort && <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 6px', borderRadius: 4, background: theme.accent1, color: '#fff' }}>{day.shortHours}ч</span>}
+
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             {isActiveMonth && !isNonWorking && <div style={{ fontSize: 12, fontWeight: 600, padding: '2px 8px', borderRadius: 12, background: freeHoursBg, color: freeHoursColor }}>{formatHours(freeHours)}</div>}
@@ -105,7 +105,7 @@ export default function DayColumn({ day, tasks, assignments, onDropTask, onRemov
             </button>
           </div>
         </div>
-        {isActiveMonth && !isNonWorking && <div style={{ marginTop: 8, height: 4, background: theme.bgTertiary, borderRadius: 2, overflow: 'hidden' }}><div style={{ height: '100%', borderRadius: 2, transition: 'width 0.5s', width: `${Math.min(fillPercent, 100)}%`, background: isShort ? theme.accent1 : (fillPercent >= 100 ? theme.danger : fillPercent >= 75 ? theme.warning : theme.success) }} /></div>}
+        {isActiveMonth && !isNonWorking && <div style={{ marginTop: 8, height: 4, background: theme.bgTertiary, borderRadius: 2, overflow: 'hidden' }}><div style={{ height: '100%', borderRadius: 2, transition: 'width 0.5s', width: `${Math.min(fillPercent, 100)}%`, background: fillPercent >= 100 ? theme.danger : fillPercent >= 75 ? theme.warning : theme.success }} /></div>}
 
         {/* Day status menu */}
         {showDayMenu && (
