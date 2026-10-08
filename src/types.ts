@@ -1,0 +1,33 @@
+export interface Task {
+  id: string;
+  title: string;
+  totalHours: number;
+  color: string;
+  description?: string;
+  link?: string;
+  status?: 'new' | 'completed';
+  createdAt?: string;
+  completedAt?: string;
+}
+
+export interface TaskAssignment {
+  id: string;
+  taskId: string;
+  dayId: string;
+  hours: number;
+  order: number;
+}
+
+export interface Day {
+  id: string;
+  date: Date;
+  dayOfWeek: number;
+  isWorkingDay: boolean;
+  status?: 'working' | 'vacation' | 'holiday' | 'short';
+  shortHours?: number;
+}
+
+export interface Week {
+  id: string;
+  days: Day[];
+}
