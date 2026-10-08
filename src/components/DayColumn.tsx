@@ -16,10 +16,11 @@ interface Props {
   onReorderAssignment?: (sourceId: string, targetId: string) => void;
   onMergeAssignments?: (sourceId: string, targetId: string) => void;
   isMobile?: boolean;
+  isActiveMonth?: boolean;
 }
 
-export default function DayColumn({ day, tasks, assignments, onDropTask, onRemoveAssignment, onSplitAssignment, onMoveAssignment, onSetDayStatus, onReorderAssignment, onMergeAssignments, isMobile = false }: Props) {
-  const { theme } = useTheme();
+export default function DayColumn({ day, tasks, assignments, onDropTask, onRemoveAssignment, onSplitAssignment, onMoveAssignment, onSetDayStatus, onReorderAssignment, onMergeAssignments, isMobile = false, isActiveMonth = true }: Props) {
+  const { theme, mode } = useTheme();
   const [isDragOver, setIsDragOver] = useState(false);
   const [showDropMenu, setShowDropMenu] = useState(false);
   const [pendingTaskId, setPendingTaskId] = useState<string | null>(null);
@@ -27,6 +28,11 @@ export default function DayColumn({ day, tasks, assignments, onDropTask, onRemov
   const [showSplitMenu, setShowSplitMenu] = useState(false);
   const [splittingAssignmentId, setSplittingAssignmentId] = useState<string | null>(null);
   const [showDayMenu, setShowDayMenu] = useState(false);
+  
+  // Определяем цвета в зависимости от того, активный это месяц или нет
+  const cardBg = isActiveMonth 
+    ? (mode === 'dark' ? '#383838' : '#FFFFFF')
+    : (mode === 'dark' ? '#303030' : '#EBF1F6');
 
   const dayAssignments = assignments
     .filter((a) => a.dayId === day.id)
@@ -110,9 +116,9 @@ export default function DayColumn({ day, tasks, assignments, onDropTask, onRemov
       style={{
         position: 'relative', display: 'flex', flexDirection: 'column',
         borderRadius: 12, minHeight: isMobile ? 120 : 180, transition: 'all 0.2s',
-        background: !day.isWorkingDay ? theme.bgTertiary : isVacation ? `${theme.warning}10` : isHoliday ? `${theme.accent2}10` : theme.bgCard,
-        border: `${isToday ? '3px' : '1px'} solid ${!day.isWorkingDay ? theme.borderPrimary : isToday ? theme.accent1 : isDragOver ? theme.accent1 : isVacation ? theme.warning : isHoliday ? theme.accent2 : theme.borderPrimary}`,
-        opacity: !day.isWorkingDay ? 0.4 : isNonWorking ? 0.7 : 1,
+        background: !isActiveMonth ? theme.bgTertiary : isVacation ? `${theme.warning}10` : isHoliday ? `${theme.accent2}10` : cardBg,
+        border: `${isToday ? '3px' : '1px'} solid ${!isActiveMonth ? theme.borderPrimary : isToday ? theme.accent1 : isDragOver ? theme.accent1 : isVacation ? theme.warning : isHoliday ? theme.accent2 : theme.borderPrimary}`,
+        opacity: !isActiveMonth ? 0.4 : isNonWorking ? 0.7 : 1,
         boxShadow: isDragOver ? `0 0 0 2px ${theme.accent1}30` : theme.shadow,
         overflow: 'hidden',
         width: isMobile ? '100%' : undefined
@@ -143,7 +149,7 @@ export default function DayColumn({ day, tasks, assignments, onDropTask, onRemov
             )}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            {day.isWorkingDay && !isNonWorking && (
+            {isActiveMonth && !isNonWorking && (
               <div style={{
                 fontSize: 12, fontWeight: 600, padding: '2px 8px', borderRadius: 12,
                 background: freeHoursBg, color: freeHoursColor
@@ -169,7 +175,7 @@ export default function DayColumn({ day, tasks, assignments, onDropTask, onRemov
             </button>
           </div>
         </div>
-        {day.isWorkingDay && !isNonWorking && (
+        {isActiveMonth && !isNonWorking && (
           <div style={{ marginTop: 8, height: 4, background: theme.bgTertiary, borderRadius: 2, overflow: 'hidden' }}>
             <div
               style={{
@@ -239,7 +245,7 @@ export default function DayColumn({ day, tasks, assignments, onDropTask, onRemov
 
       {/* Task blocks */}
       <div style={{ flex: 1, padding: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {day.isWorkingDay && dayAssignments.map((assignment) => {
+        {isActiveMonth && dayAssignments.map((assignment) => {
           const task = getTaskForAssignment(assignment);
           if (!task) return null;
           
@@ -357,7 +363,7 @@ export default function DayColumn({ day, tasks, assignments, onDropTask, onRemov
           );
         })}
 
-        {day.isWorkingDay && isDragOver && !showDropMenu && (
+        {isActiveMonth && isDragOver && !showDropMenu && (
           <div style={{
             border: `2px dashed ${theme.accent1}50`, borderRadius: 8, padding: 16,
             background: `${theme.accent1}08`, display: 'flex', alignItems: 'center', justifyContent: 'center',

@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { Task, TaskAssignment, Week } from './types';
 import { getMonthWeeks, getMonthName, generateId, HOURS_PER_DAY } from './utils/dateUtils';
 import { formatHours } from './utils/timeFormat';
@@ -37,6 +37,8 @@ function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'new' | 'completed'>('all');
   const [showExportModal, setShowExportModal] = useState(false);
+  const [visibleMonth, setVisibleMonth] = useState({ month: now.getMonth(), year: now.getFullYear() });
+  const [shouldScrollToCurrentWeek, setShouldScrollToCurrentWeek] = useState(true);
 
   const toggleHint = () => {
     const newState = !showHint;
@@ -121,19 +123,267 @@ function App() {
   useEffect(() => { if (!isLoading && currentUser) saveTasks(tasks); }, [tasks, isLoading, currentUser]);
   useEffect(() => { if (!isLoading && currentUser) saveAssignments(assignments); }, [assignments, isLoading, currentUser]);
 
-  const weeks = useMemo(() => getMonthWeeks(currentYear, currentMonth), [currentYear, currentMonth]);
+  const weeksContainerRef = useRef<HTMLDivElement>(null);
+  const currentWeekRef = useRef<HTMLDivElement>(null);
+
+  // Загружаем все недели текущего года
+  const weeks = useMemo(() => {
+    const allWeeks: Week[] = [];
+    
+    // Генерируем недели для всех 12 месяцев года
+    for (let month = 0; month < 12; month++) {
+      const monthWeeks = getMonthWeeks(currentYear, month);
+      allWeeks.push(...monthWeeks);
+    }
+    
+    // Убираем дублирующиеся недели (недели с одинаковым первым днём)
+    const uniqueWeeks = allWeeks.filter((week, index, self) => {
+      const firstDay = week.days[0].date.toDateString();
+      return index === self.findIndex(w => w.days[0].date.toDateString() === firstDay);
+    });
+    
+    // Находим текущую неделю (неделю с сегодняшней датой)
+    const today = new Date();
+    const currentWeekIndex = uniqueWeeks.findIndex(week => {
+      return week.days.some(day => {
+        const dayDate = new Date(day.date);
+        return dayDate.toDateString() === today.toDateString();
+      });
+    });
+    
+    // Если нашли текущую неделю, перестраиваем массив так, чтобы она была второй
+    if (currentWeekIndex !== -1) {
+      const weeksBefore = uniqueWeeks.slice(0, currentWeekIndex);
+      const currentWeek = uniqueWeeks[currentWeekIndex];
+      const weeksAfter = uniqueWeeks.slice(currentWeekIndex + 1);
+      
+      return [...weeksBefore, currentWeek, ...weeksAfter];
+    }
+    
+    return uniqueWeeks;
+  }, [currentYear]);
+
+  // Определяем текущую неделю
+  const currentWeekId = useMemo(() => {
+    const today = new Date();
+    const week = weeks.find(w => 
+      w.days.some(day => {
+        const dayDate = new Date(day.date);
+        return dayDate.toDateString() === today.toDateString();
+      })
+    );
+    return week?.id || null;
+  }, [weeks]);
+
+  // Автоматический скролл к текущей неделе при загрузке
+  useEffect(() => {
+    if (!isLoading && weeks.length > 0 && shouldScrollToCurrentWeek) {
+      // Увеличенная задержка для гарантии, что DOM полностью отрендерился
+      const timer = setTimeout(() => {
+        const container = weeksContainerRef.current;
+        const weekElement = currentWeekRef.current;
+        
+        console.log('Attempting to scroll:', {
+          hasContainer: !!container,
+          hasWeekElement: !!weekElement,
+          currentWeekId
+        });
+        
+        if (container && weekElement) {
+          // Получаем позицию элемента относительно контейнера
+          const containerRect = container.getBoundingClientRect();
+          const weekRect = weekElement.getBoundingClientRect();
+          
+          console.log('Scroll positions:', {
+            containerTop: containerRect.top,
+            weekTop: weekRect.top,
+            containerScrollTop: container.scrollTop
+          });
+          
+          // Вычисляем позицию для скролла (текущая неделя должна быть второй сверху)
+          const scrollTop = weekRect.top - containerRect.top + container.scrollTop - 20;
+          
+          console.log('Scrolling to:', scrollTop);
+          
+          container.scrollTo({
+            top: scrollTop,
+            behavior: 'smooth'
+          });
+        } else {
+          console.warn('Cannot scroll - refs not ready');
+        }
+      }, 300);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [weeks, isLoading, shouldScrollToCurrentWeek, currentWeekId]);
+
+  // Ref для хранения актуальных значений weeks и visibleMonth
+  const weeksRef = useRef(weeks);
+  const visibleMonthRef = useRef(visibleMonth);
+  
+  useEffect(() => {
+    weeksRef.current = weeks;
+    visibleMonthRef.current = visibleMonth;
+  }, [weeks, visibleMonth]);
+
+  // Обработчик скролла для определения активного месяца
+  useEffect(() => {
+    // Используем requestAnimationFrame для гарантии что DOM отрендерился
+    const attachScrollHandler = () => {
+      const container = weeksContainerRef.current;
+      if (!container) {
+        // Если контейнер ещё не готов, пробуем снова через кадр
+        requestAnimationFrame(attachScrollHandler);
+        return;
+      }
+
+      console.log('Scroll handler: attached to container');
+
+      const handleScroll = () => {
+        const containerRect = container.getBoundingClientRect();
+        const containerCenter = containerRect.top + containerRect.height / 2;
+        
+        // Находим неделю, которая находится ближе всего к центру контейнера
+        let closestWeek: Week | undefined;
+        let minDistance = Infinity;
+        
+        weeksRef.current.forEach(week => {
+          const weekElement = document.getElementById(`week-${week.id}`);
+          if (weekElement) {
+            const weekRect = weekElement.getBoundingClientRect();
+            const weekCenter = weekRect.top + weekRect.height / 2;
+            const distance = Math.abs(weekCenter - containerCenter);
+            
+            if (distance < minDistance) {
+              minDistance = distance;
+              closestWeek = week;
+            }
+          }
+        });
+        
+        // Определяем месяц ближайшей недели по большинству дней
+        if (closestWeek) {
+          // Считаем сколько дней из недели принадлежит каждому месяцу
+          const monthCounts: Record<string, number> = {};
+          closestWeek.days.forEach(day => {
+            const dayDate = new Date(day.date);
+            const key = `${dayDate.getFullYear()}-${dayDate.getMonth()}`;
+            monthCounts[key] = (monthCounts[key] || 0) + 1;
+          });
+          
+          // Находим месяц с максимальным количеством дней
+          let maxMonth = '';
+          let maxCount = 0;
+          Object.entries(monthCounts).forEach(([key, count]) => {
+            if (count > maxCount) {
+              maxCount = count;
+              maxMonth = key;
+            }
+          });
+          
+          // Парсим год и месяц
+          const [yearStr, monthStr] = maxMonth.split('-');
+          const year = parseInt(yearStr);
+          const month = parseInt(monthStr);
+          
+          const currentVisibleMonth = visibleMonthRef.current;
+          console.log('Scroll detected:', { closestWeek: closestWeek.id, detectedMonth: month, detectedYear: year, currentVisibleMonth: currentVisibleMonth.month, currentVisibleYear: currentVisibleMonth.year });
+          
+          // Обновляем видимый месяц если он изменился
+          if (month !== currentVisibleMonth.month || year !== currentVisibleMonth.year) {
+            console.log('Updating visible month to:', { month, year });
+            setVisibleMonth({ month, year });
+          }
+        }
+      };
+
+      container.addEventListener('scroll', handleScroll);
+      
+      // Сохраняем ссылку на обработчик для cleanup
+      (container as any)._scrollHandler = handleScroll;
+    };
+
+    attachScrollHandler();
+
+    return () => {
+      const container = weeksContainerRef.current;
+      if (container && (container as any)._scrollHandler) {
+        console.log('Scroll handler: detached from container');
+        container.removeEventListener('scroll', (container as any)._scrollHandler);
+        delete (container as any)._scrollHandler;
+      }
+    };
+  }, []); // Пустой массив зависимостей - добавляется один раз при монтировании
+
+  // Функция для скролла к конкретному месяцу
+  const scrollToMonth = (direction: -1 | 1) => {
+    const container = weeksContainerRef.current;
+    if (!container) return;
+
+    // Вычисляем целевой месяц
+    let targetMonth = visibleMonth.month + direction;
+    let targetYear = visibleMonth.year;
+
+    if (targetMonth < 0) {
+      targetMonth = 11;
+      targetYear--;
+    } else if (targetMonth > 11) {
+      targetMonth = 0;
+      targetYear++;
+    }
+
+    // Проверяем границы года
+    if (targetYear < currentYear || targetYear > currentYear) {
+      return;
+    }
+
+    // Находим первую неделю целевого месяца
+    const targetWeek = weeks.find(week => {
+      const firstDay = new Date(week.days[0].date);
+      return firstDay.getMonth() === targetMonth && firstDay.getFullYear() === targetYear;
+    });
+
+    if (targetWeek) {
+      const weekElement = document.getElementById(`week-${targetWeek.id}`);
+      if (weekElement) {
+        const containerRect = container.getBoundingClientRect();
+        const weekRect = weekElement.getBoundingClientRect();
+        
+        // Скроллим так, чтобы неделя была в центре видимой области
+        const scrollTop = weekRect.top - containerRect.top + container.scrollTop - 100;
+        
+        container.scrollTo({
+          top: scrollTop,
+          behavior: 'smooth'
+        });
+
+        // Обновляем видимый месяц
+        setVisibleMonth({ month: targetMonth, year: targetYear });
+      }
+    }
+  };
 
   const prevMonth = () => {
     if (currentMonth === 0) { setCurrentMonth(11); setCurrentYear(currentYear - 1); }
     else setCurrentMonth(currentMonth - 1);
+    setVisibleMonth({ month: currentMonth === 0 ? 11 : currentMonth - 1, year: currentMonth === 0 ? currentYear - 1 : currentYear });
+    setShouldScrollToCurrentWeek(false);
   };
 
   const nextMonth = () => {
     if (currentMonth === 11) { setCurrentMonth(0); setCurrentYear(currentYear + 1); }
     else setCurrentMonth(currentMonth + 1);
+    setVisibleMonth({ month: currentMonth === 11 ? 0 : currentMonth + 1, year: currentMonth === 11 ? currentYear + 1 : currentYear });
+    setShouldScrollToCurrentWeek(false);
   };
 
-  const goToToday = () => { setCurrentYear(now.getFullYear()); setCurrentMonth(now.getMonth()); };
+  const goToToday = () => { 
+    setCurrentYear(now.getFullYear()); 
+    setCurrentMonth(now.getMonth());
+    setVisibleMonth({ month: now.getMonth(), year: now.getFullYear() });
+    setShouldScrollToCurrentWeek(true);
+  };
 
   const addTask = useCallback((task: Task) => { setTasks((prev) => [...prev, task]); }, []);
 
@@ -252,13 +502,36 @@ function App() {
   }, [assignments]);
 
   const totalTaskHours = tasks.reduce((sum, t) => sum + t.totalHours, 0);
-  const totalAssignedHours = assignments.reduce((sum, a) => sum + a.hours, 0);
+  
+  // Считаем назначенные часы только для текущего месяца и только в РАБОЧИЕ дни
+  const totalAssignedHours = useMemo(() => {
+    return assignments.reduce((sum, a) => {
+      // Проверяем что назначение принадлежит текущему месяцу
+      const dayId = a.dayId;
+      const dayDateStr = dayId.replace('day-', '');
+      const dayDate = new Date(dayDateStr);
+      const isCurrentMonth = dayDate.getMonth() === currentMonth && dayDate.getFullYear() === currentYear;
+      
+      // Проверяем что день НЕ является отпускным или выходным
+      const isVacationOrHoliday = dayStatuses[dayId] === 'vacation' || dayStatuses[dayId] === 'holiday';
+      
+      // Учитываем только если это текущий месяц И день рабочий
+      return (isCurrentMonth && !isVacationOrHoliday) ? sum + a.hours : sum;
+    }, 0);
+  }, [assignments, currentMonth, currentYear, dayStatuses]);
 
-  // Расчёт общего рабочего времени за месяц (8 часов × рабочие дни, исключая отпуск/праздники)
-  const workingDaysInMonth = weeks.reduce((count, week) => {
-    return count + week.days.filter(day => 
-      day.isWorkingDay && !dayStatuses[day.id]
-    ).length;
+  // Расчёт общего рабочего времени за текущий выбранный месяц (8 часов × рабочие дни, исключая отпуск/праздники)
+  const currentMonthWeeks = useMemo(() => {
+    return getMonthWeeks(currentYear, currentMonth);
+  }, [currentYear, currentMonth]);
+  
+  const workingDaysInMonth = currentMonthWeeks.reduce((count, week) => {
+    return count + week.days.filter(day => {
+      // Проверяем что день принадлежит текущему месяцу
+      const dayDate = new Date(day.date);
+      const isCurrentMonth = dayDate.getMonth() === currentMonth && dayDate.getFullYear() === currentYear;
+      return isCurrentMonth && day.isWorkingDay && !dayStatuses[day.id];
+    }).length;
   }, 0);
   const totalWorkingHours = workingDaysInMonth * HOURS_PER_DAY;
   const remainingWorkingHours = totalWorkingHours - totalAssignedHours;
@@ -375,16 +648,24 @@ function App() {
 
           {/* Month navigation */}
           <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 4 : 8 }}>
-            <button onClick={prevMonth} style={{
-              padding: isMobile ? 6 : 8, 
-              borderRadius: 8, 
-              border: 'none', 
-              cursor: 'pointer',
-              background: 'transparent', 
-              color: theme.textSecondary, 
-              transition: 'all 0.2s'
-            }}
-              onMouseEnter={e => (e.currentTarget.style.background = theme.bgHover)}
+            <button 
+              onClick={() => scrollToMonth(-1)}
+              disabled={visibleMonth.month === 0 && visibleMonth.year === currentYear}
+              style={{
+                padding: isMobile ? 6 : 8, 
+                borderRadius: 8, 
+                border: 'none', 
+                cursor: (visibleMonth.month === 0 && visibleMonth.year === currentYear) ? 'not-allowed' : 'pointer',
+                background: 'transparent', 
+                color: (visibleMonth.month === 0 && visibleMonth.year === currentYear) ? theme.textTertiary : theme.textSecondary, 
+                transition: 'all 0.2s',
+                opacity: (visibleMonth.month === 0 && visibleMonth.year === currentYear) ? 0.5 : 1
+              }}
+              onMouseEnter={e => {
+                if (!(visibleMonth.month === 0 && visibleMonth.year === currentYear)) {
+                  e.currentTarget.style.background = theme.bgHover;
+                }
+              }}
               onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
             >
               <svg width={isMobile ? 16 : 20} height={isMobile ? 16 : 20} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -399,36 +680,32 @@ function App() {
               textAlign: 'center', 
               margin: 0 
             }}>
-              {getMonthName(currentMonth)} {currentYear}
+              {getMonthName(visibleMonth.month)} {visibleMonth.year}
             </h2>
-            <button onClick={nextMonth} style={{
-              padding: isMobile ? 6 : 8, 
-              borderRadius: 8, 
-              border: 'none', 
-              cursor: 'pointer',
-              background: 'transparent', 
-              color: theme.textSecondary, 
-              transition: 'all 0.2s'
-            }}
-              onMouseEnter={e => (e.currentTarget.style.background = theme.bgHover)}
+            <button 
+              onClick={() => scrollToMonth(1)}
+              disabled={visibleMonth.month === 11 && visibleMonth.year === currentYear}
+              style={{
+                padding: isMobile ? 6 : 8, 
+                borderRadius: 8, 
+                border: 'none', 
+                cursor: (visibleMonth.month === 11 && visibleMonth.year === currentYear) ? 'not-allowed' : 'pointer',
+                background: 'transparent', 
+                color: (visibleMonth.month === 11 && visibleMonth.year === currentYear) ? theme.textTertiary : theme.textSecondary, 
+                transition: 'all 0.2s',
+                opacity: (visibleMonth.month === 11 && visibleMonth.year === currentYear) ? 0.5 : 1
+              }}
+              onMouseEnter={e => {
+                if (!(visibleMonth.month === 11 && visibleMonth.year === currentYear)) {
+                  e.currentTarget.style.background = theme.bgHover;
+                }
+              }}
               onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
             >
               <svg width={isMobile ? 16 : 20} height={isMobile ? 16 : 20} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </button>
-            {!isMobile && (
-              <button onClick={goToToday} style={{
-                marginLeft: 8, padding: '6px 12px', fontSize: 12, fontWeight: 500,
-                background: `${theme.accent1}15`, color: theme.accent1,
-                borderRadius: 8, border: 'none', cursor: 'pointer', transition: 'all 0.2s'
-              }}
-                onMouseEnter={e => (e.currentTarget.style.background = `${theme.accent1}25`)}
-                onMouseLeave={e => (e.currentTarget.style.background = `${theme.accent1}15`)}
-              >
-                Сегодня
-              </button>
-            )}
           </div>
 
           {/* Stats & Theme toggle */}
@@ -763,24 +1040,48 @@ function App() {
             </div>
           )}
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {weeks.map((week) => (
-              <WeekRow
-                key={week.id}
-                week={week}
-                tasks={tasks}
-                assignments={assignments}
-                dayStatuses={dayStatuses}
-                onDropTask={dropTask}
-                onRemoveAssignment={removeAssignment}
-                onSplitAssignment={splitAssignment}
-                onMoveAssignment={moveAssignment}
-                onSetDayStatus={setDayStatus}
-                onReorderAssignment={reorderAssignment}
-                onMergeAssignments={mergeAssignments}
-                isMobile={isMobile}
-              />
-            ))}
+          {/* Контейнер с прокруткой для недель */}
+          <div 
+            ref={weeksContainerRef}
+            style={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              gap: 16,
+              maxHeight: 'calc(100vh - 200px)',
+              overflowY: 'auto',
+              paddingRight: 8
+            }}
+          >
+            {weeks.map((week) => {
+              // Проверяем является ли эта неделя текущей
+              const today = new Date();
+              const isCurrentWeek = week.days.some(day => {
+                const dayDate = new Date(day.date);
+                return dayDate.toDateString() === today.toDateString();
+              });
+              
+              return (
+                <div key={week.id} id={`week-${week.id}`} ref={isCurrentWeek ? currentWeekRef : null}>
+                  <WeekRow
+                    week={week}
+                    tasks={tasks}
+                    assignments={assignments}
+                    dayStatuses={dayStatuses}
+                    onDropTask={dropTask}
+                    onRemoveAssignment={removeAssignment}
+                    onSplitAssignment={splitAssignment}
+                    onMoveAssignment={moveAssignment}
+                    onSetDayStatus={setDayStatus}
+                    onReorderAssignment={reorderAssignment}
+                    onMergeAssignments={mergeAssignments}
+                    isMobile={isMobile}
+                    isCurrentWeek={isCurrentWeek}
+                    visibleMonth={visibleMonth}
+                    currentWeekId={currentWeekId}
+                  />
+                </div>
+              );
+            })}
           </div>
 
           {weeks.length === 0 && (
@@ -855,33 +1156,59 @@ interface WeekRowProps {
   onReorderAssignment?: (sourceId: string, targetId: string) => void;
   onMergeAssignments?: (sourceId: string, targetId: string) => void;
   isMobile: boolean;
+  isCurrentWeek?: boolean;
+  visibleMonth: { month: number; year: number };
+  currentWeekId: string | null;
 }
 
-function WeekRow({ week, tasks, assignments, dayStatuses, onDropTask, onRemoveAssignment, onSplitAssignment, onMoveAssignment, onSetDayStatus, onReorderAssignment, onMergeAssignments, isMobile }: WeekRowProps & { isMobile: boolean }) {
+function WeekRow({ week, tasks, assignments, dayStatuses, onDropTask, onRemoveAssignment, onSplitAssignment, onMoveAssignment, onSetDayStatus, onReorderAssignment, onMergeAssignments, isMobile, isCurrentWeek, visibleMonth, currentWeekId }: WeekRowProps & { isMobile: boolean }) {
+  const { theme } = useTheme();
+  
   return (
-    <div>
+    <div style={{
+      padding: isCurrentWeek ? 8 : 0,
+      background: isCurrentWeek ? `${theme.accent1}08` : 'transparent',
+      borderRadius: 12,
+      border: isCurrentWeek ? `2px solid ${theme.accent1}30` : 'none',
+      transition: 'all 0.3s ease'
+    }}>
       <div style={{
         display: isMobile ? 'flex' : 'grid',
         gridTemplateColumns: isMobile ? undefined : 'repeat(5, 1fr)',
         flexDirection: isMobile ? 'column' : undefined,
         gap: isMobile ? 8 : 12
       }}>
-        {week.days.map((day) => (
-          <DayColumn
-            key={day.id}
-            day={{ ...day, status: dayStatuses[day.id] || 'working' }}
-            tasks={tasks}
-            assignments={assignments}
-            onDropTask={onDropTask}
-            onRemoveAssignment={onRemoveAssignment}
-            onSplitAssignment={onSplitAssignment}
-            onMoveAssignment={onMoveAssignment}
-            onSetDayStatus={onSetDayStatus}
-            onReorderAssignment={onReorderAssignment}
-            onMergeAssignments={onMergeAssignments}
-            isMobile={isMobile}
-          />
-        ))}
+        {week.days.map((day) => {
+          // Определяем активность каждого дня динамически
+          const dayDate = new Date(day.date);
+          
+          // Текущая неделя всегда активна (кроме отпусков/выходных)
+          const isCurrentWeekDay = week.id === currentWeekId;
+          
+          // Для остальных недель - активность по видимому месяцу
+          const isDayInActiveMonth = dayDate.getMonth() === visibleMonth.month && dayDate.getFullYear() === visibleMonth.year;
+          
+          // День активен если это текущая неделя ИЛИ день в активном месяце
+          const isActiveDay = isCurrentWeekDay || isDayInActiveMonth;
+          
+          return (
+            <DayColumn
+              key={day.id}
+              day={{ ...day, status: dayStatuses[day.id] || 'working' }}
+              tasks={tasks}
+              assignments={assignments}
+              onDropTask={onDropTask}
+              onRemoveAssignment={onRemoveAssignment}
+              onSplitAssignment={onSplitAssignment}
+              onMoveAssignment={onMoveAssignment}
+              onSetDayStatus={onSetDayStatus}
+              onReorderAssignment={onReorderAssignment}
+              onMergeAssignments={onMergeAssignments}
+              isMobile={isMobile}
+              isActiveMonth={isActiveDay}
+            />
+          );
+        })}
       </div>
     </div>
   );
