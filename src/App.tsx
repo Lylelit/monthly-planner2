@@ -563,18 +563,6 @@ function App() {
             </div>
           </div>
 
-          {/* Current month display */}
-          <h2 style={{ 
-            fontSize: isMobile ? 14 : 16, 
-            fontWeight: 600, 
-            color: theme.textPrimary, 
-            minWidth: isMobile ? 120 : 160, 
-            textAlign: 'center', 
-            margin: 0 
-          }}>
-            {getMonthName(visibleMonth.month)} {visibleMonth.year}
-          </h2>
-
           {/* Stats & Theme toggle */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             {/* Hint toggle */}
