@@ -316,6 +316,54 @@ function App() {
     };
   }, []); // Пустой массив зависимостей - добавляется один раз при монтировании
 
+  // Функция для скролла к конкретному месяцу
+  const scrollToMonth = (direction: -1 | 1) => {
+    const container = weeksContainerRef.current;
+    if (!container) return;
+
+    // Вычисляем целевой месяц
+    let targetMonth = visibleMonth.month + direction;
+    let targetYear = visibleMonth.year;
+
+    if (targetMonth < 0) {
+      targetMonth = 11;
+      targetYear--;
+    } else if (targetMonth > 11) {
+      targetMonth = 0;
+      targetYear++;
+    }
+
+    // Проверяем границы года
+    if (targetYear < currentYear || targetYear > currentYear) {
+      return;
+    }
+
+    // Находим первую неделю целевого месяца
+    const targetWeek = weeks.find(week => {
+      const firstDay = new Date(week.days[0].date);
+      return firstDay.getMonth() === targetMonth && firstDay.getFullYear() === targetYear;
+    });
+
+    if (targetWeek) {
+      const weekElement = document.getElementById(`week-${targetWeek.id}`);
+      if (weekElement) {
+        const containerRect = container.getBoundingClientRect();
+        const weekRect = weekElement.getBoundingClientRect();
+        
+        // Скроллим так, чтобы неделя была в центре видимой области
+        const scrollTop = weekRect.top - containerRect.top + container.scrollTop - 100;
+        
+        container.scrollTo({
+          top: scrollTop,
+          behavior: 'smooth'
+        });
+
+        // Обновляем видимый месяц
+        setVisibleMonth({ month: targetMonth, year: targetYear });
+      }
+    }
+  };
+
   const prevMonth = () => {
     if (currentMonth === 0) { setCurrentMonth(11); setCurrentYear(currentYear - 1); }
     else setCurrentMonth(currentMonth - 1);
@@ -596,6 +644,68 @@ function App() {
                 <h1 style={{ fontSize: 18, fontWeight: 700, color: theme.textPrimary, margin: 0 }}>Твой планировщик</h1>
               )}
             </div>
+          </div>
+
+          {/* Month navigation */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 4 : 8 }}>
+            <button 
+              onClick={() => scrollToMonth(-1)}
+              disabled={visibleMonth.month === 0 && visibleMonth.year === currentYear}
+              style={{
+                padding: isMobile ? 6 : 8, 
+                borderRadius: 8, 
+                border: 'none', 
+                cursor: (visibleMonth.month === 0 && visibleMonth.year === currentYear) ? 'not-allowed' : 'pointer',
+                background: 'transparent', 
+                color: (visibleMonth.month === 0 && visibleMonth.year === currentYear) ? theme.textTertiary : theme.textSecondary, 
+                transition: 'all 0.2s',
+                opacity: (visibleMonth.month === 0 && visibleMonth.year === currentYear) ? 0.5 : 1
+              }}
+              onMouseEnter={e => {
+                if (!(visibleMonth.month === 0 && visibleMonth.year === currentYear)) {
+                  e.currentTarget.style.background = theme.bgHover;
+                }
+              }}
+              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+            >
+              <svg width={isMobile ? 16 : 20} height={isMobile ? 16 : 20} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <h2 style={{ 
+              fontSize: isMobile ? 14 : 16, 
+              fontWeight: 600, 
+              color: theme.textPrimary, 
+              minWidth: isMobile ? 120 : 160, 
+              textAlign: 'center', 
+              margin: 0 
+            }}>
+              {getMonthName(visibleMonth.month)} {visibleMonth.year}
+            </h2>
+            <button 
+              onClick={() => scrollToMonth(1)}
+              disabled={visibleMonth.month === 11 && visibleMonth.year === currentYear}
+              style={{
+                padding: isMobile ? 6 : 8, 
+                borderRadius: 8, 
+                border: 'none', 
+                cursor: (visibleMonth.month === 11 && visibleMonth.year === currentYear) ? 'not-allowed' : 'pointer',
+                background: 'transparent', 
+                color: (visibleMonth.month === 11 && visibleMonth.year === currentYear) ? theme.textTertiary : theme.textSecondary, 
+                transition: 'all 0.2s',
+                opacity: (visibleMonth.month === 11 && visibleMonth.year === currentYear) ? 0.5 : 1
+              }}
+              onMouseEnter={e => {
+                if (!(visibleMonth.month === 11 && visibleMonth.year === currentYear)) {
+                  e.currentTarget.style.background = theme.bgHover;
+                }
+              }}
+              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+            >
+              <svg width={isMobile ? 16 : 20} height={isMobile ? 16 : 20} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
           </div>
 
           {/* Stats & Theme toggle */}
