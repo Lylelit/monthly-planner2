@@ -221,7 +221,12 @@ function App() {
   // Обработчик скролла для определения активного месяца
   useEffect(() => {
     const container = weeksContainerRef.current;
-    if (!container) return;
+    if (!container) {
+      console.log('Scroll handler: container not ready');
+      return;
+    }
+
+    console.log('Scroll handler: attached to container');
 
     const handleScroll = () => {
       const containerRect = container.getBoundingClientRect();
@@ -270,15 +275,21 @@ function App() {
         const year = parseInt(yearStr);
         const month = parseInt(monthStr);
         
+        console.log('Scroll detected:', { closestWeek: closestWeek.id, detectedMonth: month, detectedYear: year, currentVisibleMonth: visibleMonth.month, currentVisibleYear: visibleMonth.year });
+        
         // Обновляем видимый месяц если он изменился
         if (month !== visibleMonth.month || year !== visibleMonth.year) {
+          console.log('Updating visible month to:', { month, year });
           setVisibleMonth({ month, year });
         }
       }
     };
 
     container.addEventListener('scroll', handleScroll);
-    return () => container.removeEventListener('scroll', handleScroll);
+    return () => {
+      console.log('Scroll handler: detached from container');
+      container.removeEventListener('scroll', handleScroll);
+    };
   }, [weeks, visibleMonth]);
 
   const prevMonth = () => {
