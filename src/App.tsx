@@ -375,38 +375,37 @@ function App() {
         }}>
           {isMobile && <button onClick={() => setShowSidebar(false)} style={{ alignSelf: 'flex-end', padding: 8, borderRadius: 8, border: 'none', background: theme.bgSecondary, color: theme.textSecondary, cursor: 'pointer', marginBottom: 8 }}><svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>}
           
-          {/* Кнопка сворачивания для десктопа */}
-          {!isMobile && (
-            <button 
-              onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-              style={{ 
-                alignSelf: 'flex-end', 
-                padding: 8, 
-                borderRadius: 8, 
-                border: 'none', 
-                background: theme.bgSecondary, 
-                color: theme.textSecondary, 
-                cursor: 'pointer', 
-                marginBottom: 8,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
-              title={isSidebarCollapsed ? 'Развернуть панель' : 'Свернуть панель'}
-            >
-              <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                {isSidebarCollapsed ? (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-                ) : (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
-                )}
-              </svg>
-            </button>
-          )}
-          
           {/* Свёрнутое состояние - только иконки */}
           {isSidebarCollapsed && !isMobile ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16, alignItems: 'center' }}>
+              {/* Кнопка разворачивания */}
+              <button 
+                onClick={() => setIsSidebarCollapsed(false)}
+                style={{ 
+                  background: theme.bgCard, 
+                  borderRadius: 12, 
+                  border: `1px solid ${theme.borderPrimary}`, 
+                  padding: 12, 
+                  boxShadow: theme.shadow,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.background = theme.bgHover;
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.background = theme.bgCard;
+                }}
+                title="Развернуть панель"
+              >
+                <svg width="20" height="20" fill="none" stroke={theme.accent1} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                </svg>
+              </button>
+              
               {/* Иконка "Мои задачи" */}
               <div style={{ 
                 background: theme.bgCard, 
@@ -414,7 +413,6 @@ function App() {
                 border: `1px solid ${theme.borderPrimary}`, 
                 padding: 12, 
                 boxShadow: theme.shadow,
-                cursor: 'pointer'
               }} title="Мои задачи">
                 <svg width="20" height="20" fill="none" stroke={theme.accent1} viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -506,7 +504,37 @@ function App() {
             /* Развёрнутое состояние - полная панель */
             <>
               <div style={{ background: theme.bgCard, borderRadius: 16, border: `1px solid ${theme.borderPrimary}`, padding: 16, boxShadow: theme.shadow }}>
-                <h3 style={{ fontSize: 14, fontWeight: 600, color: theme.textPrimary, marginBottom: 12 }}>Мои задачи</h3>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                  <h3 style={{ fontSize: 14, fontWeight: 600, color: theme.textPrimary, margin: 0 }}>Мои задачи</h3>
+                  <button 
+                    onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                    style={{ 
+                      padding: 4, 
+                      borderRadius: 6, 
+                      border: 'none', 
+                      background: 'transparent', 
+                      color: theme.textTertiary, 
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.background = theme.bgHover;
+                      e.currentTarget.style.color = theme.textPrimary;
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.background = 'transparent';
+                      e.currentTarget.style.color = theme.textTertiary;
+                    }}
+                    title="Свернуть панель"
+                  >
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+                    </svg>
+                  </button>
+                </div>
                 <TaskForm onAddTask={addTask} />
               </div>
               
