@@ -563,63 +563,17 @@ function App() {
             </div>
           </div>
 
-          {/* Month navigation */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 4 : 8 }}>
-            <button onClick={prevMonth} style={{
-              padding: isMobile ? 6 : 8, 
-              borderRadius: 8, 
-              border: 'none', 
-              cursor: 'pointer',
-              background: 'transparent', 
-              color: theme.textSecondary, 
-              transition: 'all 0.2s'
-            }}
-              onMouseEnter={e => (e.currentTarget.style.background = theme.bgHover)}
-              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-            >
-              <svg width={isMobile ? 16 : 20} height={isMobile ? 16 : 20} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
-            <h2 style={{ 
-              fontSize: isMobile ? 14 : 16, 
-              fontWeight: 600, 
-              color: theme.textPrimary, 
-              minWidth: isMobile ? 120 : 160, 
-              textAlign: 'center', 
-              margin: 0 
-            }}>
-              {getMonthName(visibleMonth.month)} {visibleMonth.year}
-            </h2>
-            <button onClick={nextMonth} style={{
-              padding: isMobile ? 6 : 8, 
-              borderRadius: 8, 
-              border: 'none', 
-              cursor: 'pointer',
-              background: 'transparent', 
-              color: theme.textSecondary, 
-              transition: 'all 0.2s'
-            }}
-              onMouseEnter={e => (e.currentTarget.style.background = theme.bgHover)}
-              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-            >
-              <svg width={isMobile ? 16 : 20} height={isMobile ? 16 : 20} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
-            {!isMobile && (
-              <button onClick={goToToday} style={{
-                marginLeft: 8, padding: '6px 12px', fontSize: 12, fontWeight: 500,
-                background: `${theme.accent1}15`, color: theme.accent1,
-                borderRadius: 8, border: 'none', cursor: 'pointer', transition: 'all 0.2s'
-              }}
-                onMouseEnter={e => (e.currentTarget.style.background = `${theme.accent1}25`)}
-                onMouseLeave={e => (e.currentTarget.style.background = `${theme.accent1}15`)}
-              >
-                Сегодня
-              </button>
-            )}
-          </div>
+          {/* Current month display */}
+          <h2 style={{ 
+            fontSize: isMobile ? 14 : 16, 
+            fontWeight: 600, 
+            color: theme.textPrimary, 
+            minWidth: isMobile ? 120 : 160, 
+            textAlign: 'center', 
+            margin: 0 
+          }}>
+            {getMonthName(visibleMonth.month)} {visibleMonth.year}
+          </h2>
 
           {/* Stats & Theme toggle */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
