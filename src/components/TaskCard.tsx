@@ -52,16 +52,16 @@ export default function TaskCard({ task, assignedHours, totalAssignedHours, onDr
   };
 
   return (
-    <div style={{ position: 'relative', width: '100%', boxSizing: 'border-box' }}>
+    <div style={{ position: 'relative', width: '100%', boxSizing: 'border-box', minWidth: 0 }}>
       {dragOverPosition === 'above' && <div style={{ height: 4, background: theme.accent1, borderRadius: 2, margin: '4px 0' }} />}
       <div draggable onClick={() => setShowDetailsModal(true)} onDragStart={(e) => { e.dataTransfer.setData('taskId', task.id); e.dataTransfer.effectAllowed = 'move'; onDragStart(task.id); }} onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}
-        style={{ position: 'relative', borderRadius: 10, padding: 12, cursor: 'pointer', border: `1px solid ${theme.borderPrimary}`, background: theme.bgCard, transition: 'all 0.2s', borderLeft: `4px solid ${task.color}`, boxShadow: theme.shadow, width: '100%', boxSizing: 'border-box', overflow: 'hidden' }}
+        style={{ position: 'relative', borderRadius: 10, padding: 12, cursor: 'pointer', border: `1px solid ${theme.borderPrimary}`, background: theme.bgCard, transition: 'all 0.2s', borderLeft: `4px solid ${task.color}`, boxShadow: theme.shadow, width: '100%', boxSizing: 'border-box', overflow: 'hidden', minWidth: 0 }}
         onMouseEnter={e => { e.currentTarget.style.boxShadow = theme.shadowLg; e.currentTarget.style.borderLeft = `4px solid ${task.color}`; }}
         onMouseLeave={e => { e.currentTarget.style.boxShadow = theme.shadow; e.currentTarget.style.borderLeft = `4px solid ${task.color}`; }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, overflow: 'hidden' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, overflow: 'hidden', minWidth: 0 }}>
           <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
-            <h4 style={{ fontSize: 14, fontWeight: 500, color: theme.textPrimary, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{task.title}</h4>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, overflow: 'hidden' }}>
+            <h4 style={{ fontSize: 14, fontWeight: 500, color: theme.textPrimary, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>{task.title}</h4>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, overflow: 'hidden', minWidth: 0 }}>
               <span style={{ fontSize: 12, color: theme.textTertiary, whiteSpace: 'nowrap' }}>{formatHours(totalAssignedHours)} / {formatHours(task.totalHours)}</span>
               {remaining > 0 && <span style={{ fontSize: 12, color: theme.warning, fontWeight: 500, whiteSpace: 'nowrap' }}>({formatHours(remaining)} не запланировано)</span>}
               {remaining === 0 && <svg width="14" height="14" fill="none" stroke={theme.success} viewBox="0 0 24 24" style={{ display: 'inline', verticalAlign: 'middle', flexShrink: 0 }}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7"/></svg>}
