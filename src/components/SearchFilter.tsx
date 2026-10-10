@@ -1,11 +1,14 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTheme } from '../ThemeContext';
 
-interface Props { searchQuery: string; onSearchChange: (query: string) => void; statusFilter: 'all' | 'new' | 'completed'; onStatusFilterChange: (filter: 'all' | 'new' | 'completed') => void; }
+interface Props { searchQuery: string; onSearchChange: (query: string) => void; statusFilter: 'all' | 'new' | 'completed'; onStatusFilterChange: (filter: 'all' | 'new' | 'completed') => void; forceExpand?: number; }
 
-export default function SearchFilter({ searchQuery, onSearchChange, statusFilter, onStatusFilterChange }: Props) {
+export default function SearchFilter({ searchQuery, onSearchChange, statusFilter, onStatusFilterChange, forceExpand }: Props) {
   const { theme } = useTheme();
   const [isExpanded, setIsExpanded] = useState(false);
+
+  // Раскрываем панель по запросу (например, при клике на иконку поиска в свёрнутом сайдбаре)
+  useEffect(() => { if (forceExpand) setIsExpanded(true); }, [forceExpand]);
 
   return (
     <div style={{ background: theme.bgCard, borderRadius: 12, padding: 12, border: `1px solid ${theme.borderPrimary}`, boxShadow: theme.shadow, marginBottom: 16 }}>
