@@ -2,40 +2,62 @@ import { Day, Week } from '../types';
 
 export const HOURS_PER_DAY = 8;
 
+// Возвращает недели месяца. Каждая неделя — Пн–Пт.
+// Недели генерируются строго по календарю (шаг = 7 дней), поэтому одна и та же
+// физическая неделя в разных месяцах получает одинаковый id (ISO-номер недели),
+// что позволяет корректно дедуплицировать их в App и не терять дни на стыках месяцев.
 export function getMonthWeeks(year: number, month: number): Week[] {
   const weeks: Week[] = [];
   const firstDay = new Date(year, month, 1);
   const lastDay = new Date(year, month + 1, 0);
 
-  let current = new Date(firstDay);
-  const dayOfWeek = current.getDay();
-  const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-  current.setDate(current.getDate() + diff);
+  // Понедельник недели, содержащей 1-е число месяца
+  let weekStart = new Date(firstDay);
+  const dow = weekStart.getDay(); // 0 = Вс … 6 = Сб
+  const diffToMonday = dow === 0 ? -6 : 1 - dow;
+  weekStart.setDate(weekStart.getDate() + diffToMonday);
 
-  let weekIndex = 0;
-  while (current <= lastDay || weekIndex === 0) {
+  while (weekStart <= lastDay) {
     const days: Day[] = [];
     for (let i = 0; i < 5; i++) {
-      const date = new Date(current);
-      const isInMonth = date.getMonth() === month;
+      const date = new Date(weekStart);
+      date.setDate(weekStart.getDate() + i);
+      const isInMonth = date.getMonth() === month && date.getFullYear() === year;
       days.push({
-        id: `day-${date.toISOString().split('T')[0]}`,
-        date: new Date(date),
+        id: `day-${formatDateKey(date)}`,
+        date,
         dayOfWeek: i + 1,
         isWorkingDay: isInMonth,
       });
-      current.setDate(current.getDate() + 1);
     }
     weeks.push({
-      id: `week-${year}-${month}-${weekIndex}`,
+      id: `week-${getIsoWeekId(weekStart)}`,
       days,
     });
-    weekIndex++;
-    current.setDate(current.getDate() + 2);
-    if (current > lastDay && weekIndex > 0) break;
+    weekStart.setDate(weekStart.getDate() + 7);
   }
 
   return weeks;
+}
+
+// Стабильный ключ даты без зависимости от таймзоны (в отличие от toISOString)
+export function formatDateKey(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+// ISO-идентификатор недели для понедельника данной недели, напр. "2026-W41"
+function getIsoWeekId(monday: Date): string {
+  const thu = new Date(monday);
+  thu.setDate(monday.getDate() + 3); // четверг определяет ISO-год/неделю
+  const jan4 = new Date(thu.getFullYear(), 0, 4);
+  const mondayOfJan4Week = new Date(jan4);
+  const janDow = jan4.getDay();
+  mondayOfJan4Week.setDate(jan4.getDate() - (janDow === 0 ? 6 : janDow - 1));
+  const weekNo = Math.round((thu.getTime() - mondayOfJan4Week.getTime()) / (7 * 24 * 3600 * 1000)) + 1;
+  return `${thu.getFullYear()}-W${String(weekNo).padStart(2, '0')}`;
 }
 
 export function formatDate(date: Date): string {
