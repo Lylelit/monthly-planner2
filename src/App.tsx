@@ -148,6 +148,35 @@ function App() {
     currentWeekRef.current = el as HTMLDivElement | null;
   }, [weeks, currentWeekId]);
 
+  // ===== ДИАГНОСТИКА АВТОСКРОЛЛА (временно, для поиска причины бага) =====
+  // Включается так: в консоли браузера -> window.__plannerDebug = true -> перезагрузка страницы.
+  // После загрузки скопируйте вывод: window.__plannerDebugLog.join('\n')
+  useEffect(() => {
+    const dbg = () => !!(window as any).__plannerDebug;
+    const log: string[] = ((window as any).__plannerDebugLog ||= []);
+    const info = (msg: string) => { if (dbg()) { console.log('[autoscroll]', msg); log.push(msg); } };
+
+    const timer = setTimeout(() => {
+      if (!dbg()) return;
+      const container = weeksContainerRef.current;
+      info(`container=${container ? 'найден' : 'НЕ НАЙДЕН'} scrollHeight=${container?.scrollHeight} clientHeight=${container?.clientHeight} scrollTop=${container?.scrollTop}`);
+      info(`currentWeekId=${JSON.stringify(currentWeekId)} всего недель=${weeks.length}`);
+      const ids = Array.from(document.querySelectorAll('[id^="week-"]')).map(e => e.id);
+      info(`id недель в DOM (первые 5): ${ids.slice(0, 5).join(', ')} ... последние 3: ${ids.slice(-3).join(', ')}`);
+      const el = currentWeekId ? document.getElementById(`week-${currentWeekId}`) : null;
+      info(`элемент текущей недели: ${el ? `найден, offsetHeight=${el.offsetHeight}, id=${el.id}` : 'НЕ НАЙДЕН'}`);
+      if (el && container) {
+        const cr = container.getBoundingClientRect();
+        const wr = el.getBoundingClientRect();
+        info(`позиции: container.top=${Math.round(cr.top)} week.top=${Math.round(wr.top)} вычисленный targetTop=${Math.max(0, container.scrollTop + (wr.top - cr.top))}`);
+      }
+      info(`заголовок сейчас: ${getMonthName(visibleMonthRef.current.month)} ${visibleMonthRef.current.year}, shouldScrollToCurrentWeek=${shouldScrollToCurrentWeek}`);
+      info('Если "элемент текущей недели: НЕ НАЙДЕН" — проблема в id/генерации недель; если позиции корректны, но экран не прокрутился — скролл откатывается после попытки.');
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, [currentWeekId, weeks, visibleMonth, shouldScrollToCurrentWeek]);
+  // ===== КОНЕЦ ДИАГНОСТИКИ =====
+
   // Месяц, которому принадлежит неделя (большинство из 5 рабочих дней недели).
   const getWeekDominantMonth = useCallback((week: Week): { month: number; year: number } => {
     const monthCounts: Record<string, number> = {};
@@ -163,58 +192,80 @@ function App() {
   }, []);
 
   // Прокрутка контейнера ленты к неделе.
-  // Используем нативный scrollTop вместо scrollTo/scrollIntoView: мгновенная позиционная
-  // прокрутка не перехватывается другими скроллами и одинаково работает во всех браузерах.
+  // Считаем целевую позицию через offsetTop — он не зависит от текущего состояния прокрутки.
   const scrollContainerToWeek = useCallback((container: HTMLElement, weekElement: HTMLElement) => {
-    const containerRect = container.getBoundingClientRect();
-    const weekRect = weekElement.getBoundingClientRect();
-    const targetTop = Math.max(0, container.scrollTop + (weekRect.top - containerRect.top));
+    const targetTop = Math.max(0, weekElement.offsetTop);
     container.scrollTop = targetTop;
     return targetTop;
   }, []);
 
   // Одна попытка автоскролла за сессию к текущей неделе.
+  // Логика: ждём, пока контент ленты перестанет «расти» (несколько стабильных кадров),
+  // затем ставим scrollTop и удерживаем позицию ~20 кадров, чтобы последующие
+  // ре-рендеры или восстановление позиции браузером не могли её сбить.
   useEffect(() => {
     if (!shouldScrollToCurrentWeek) return;
+    const dbg = () => !!(window as any).__plannerDebug;
+    const log: string[] = ((window as any).__plannerDebugLog ||= []);
+    const info = (msg: string) => { if (dbg()) { console.log('[autoscroll]', msg); log.push(msg); } };
+
     let cancelled = false;
     let raf = 0;
     let attempts = 0;
-    let appliedTop = -1;
+    let stableFrames = 0;
+    let lastHeight = -1;
+    const startTs = performance.now();
+    info(`эффект автоскролла запущен: currentWeekId=${JSON.stringify(currentWeekId)}`);
+
     const tryScroll = () => {
       if (cancelled) return;
       attempts++;
       const container = weeksContainerRef.current;
-      // Элемент текущей недели ищем напрямую в DOM по id — надёжнее, чем ref,
-      // который мог ещё не привязаться на момент запуска эффекта.
       const weekElement = currentWeekId ? document.getElementById(`week-${currentWeekId}`) : null;
-      if (container && weekElement && weekElement.offsetHeight > 0) {
-        const top = scrollContainerToWeek(container, weekElement);
-        // Страховка от «отката» прокрутки: если браузер или сторонний код
-        // восстановил позицию (scrollTop не совпал), применяем её повторно.
-        if (appliedTop >= 0 && container.scrollTop !== appliedTop) {
-          container.scrollTop = appliedTop;
-        } else if (appliedTop < 0) {
-          appliedTop = top;
-          raf = requestAnimationFrame(() => {
-            if (!cancelled && weeksContainerRef.current && weeksContainerRef.current.scrollTop !== appliedTop) {
-              weeksContainerRef.current.scrollTop = appliedTop;
-            }
-          });
-        }
-        // Показываем в шапке месяц, к которому реально прокрутили ленту.
-        setVisibleMonth(getWeekDominantMonth(weeksRef.current.find(w => w.id === currentWeekId) || weeksRef.current[0]));
-        setShouldScrollToCurrentWeek(false);
-        return;
-      }
-      if (attempts < 90) {
-        // Ждём появления элементов в rAF-цикле: как только лента отрендерилась,
-        // скролл происходит в тот же кадр, до первой отрисовки пользователю.
-        raf = requestAnimationFrame(tryScroll);
-      } else {
+
+      if (!container || !weekElement || weekElement.offsetHeight <= 0) {
+        if (attempts % 30 === 1) info(`ожидание DOM: попытка ${attempts}, container=${!!container}, weekElement=${!!weekElement}`);
+        if (performance.now() - startTs < 5000) { raf = requestAnimationFrame(tryScroll); return; }
+        info('таймаут 5с: элемент недели так и не появился — скролл не выполнен');
         const today = new Date();
         setVisibleMonth({ month: today.getMonth(), year: today.getFullYear() });
         setShouldScrollToCurrentWeek(false);
+        return;
       }
+
+      // Ждём стабилизации высоты ленты: данные подгружаются асинхронно и карточки
+      // недель меняют размеры — ранний скролл после этого «съезжает».
+      if (container.scrollHeight !== lastHeight) {
+        lastHeight = container.scrollHeight;
+        stableFrames = 0;
+        raf = requestAnimationFrame(tryScroll);
+        return;
+      }
+      stableFrames++;
+      if (stableFrames < 4 && performance.now() - startTs < 3000) {
+        raf = requestAnimationFrame(tryScroll);
+        return;
+      }
+
+      const targetTop = scrollContainerToWeek(container, weekElement);
+      info(`применён скролл: targetTop=${targetTop}, фактический scrollTop=${container.scrollTop}, attempts=${attempts}, время=${Math.round(performance.now() - startTs)}мс`);
+
+      // Удержание позиции несколько кадров: защита от «откатов» после ре-рендеров.
+      let holdFrames = 0;
+      const hold = () => {
+        if (cancelled) return;
+        if (container.scrollTop !== targetTop) {
+          info(`детектирован откат скролла (${container.scrollTop} != ${targetTop}) — применяем повторно`);
+          container.scrollTop = targetTop;
+        }
+        holdFrames++;
+        if (holdFrames < 20) { raf = requestAnimationFrame(hold); return; }
+        info(`удержание завершено, итоговый scrollTop=${container.scrollTop}`);
+        const week = weeksRef.current.find(w => w.id === currentWeekId);
+        if (week) setVisibleMonth(getWeekDominantMonth(week));
+        setShouldScrollToCurrentWeek(false);
+      };
+      raf = requestAnimationFrame(hold);
     };
     raf = requestAnimationFrame(tryScroll);
     return () => { cancelled = true; cancelAnimationFrame(raf); };
