@@ -1,17 +1,20 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Task, TaskAssignment, Day } from '../types';
 import { useTheme } from '../ThemeContext';
 import { formatHours, parseTimeInput } from '../utils/timeFormat';
 
-interface Props { tasks: Task[]; assignments: TaskAssignment[]; days: Day[]; onReturnToNew: (taskId: string, additionalHours: number) => void; }
+interface Props { tasks: Task[]; assignments: TaskAssignment[]; days: Day[]; onReturnToNew: (taskId: string, additionalHours: number) => void; forceExpand?: number; }
 
-export default function CompletedTasksList({ tasks, assignments, days, onReturnToNew }: Props) {
+export default function CompletedTasksList({ tasks, assignments, days, onReturnToNew, forceExpand }: Props) {
   const { theme } = useTheme();
   const [isExpanded, setIsExpanded] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [returnHours, setReturnHours] = useState('');
   const [selectedMonth, setSelectedMonth] = useState<string>('all');
+
+  // Раскрываем список по запросу (например, при клике на иконку в свёрнутом сайдбаре)
+  useEffect(() => { if (forceExpand) setIsExpanded(true); }, [forceExpand]);
 
   const completedTasks = tasks.filter(t => t.status === 'completed');
 
