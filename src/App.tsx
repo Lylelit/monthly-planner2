@@ -104,10 +104,9 @@ function App() {
   const currentWeekRef = useRef<HTMLDivElement | null>(null);
 
   const weeks = useMemo(() => {
-    // Собираем недели за три года: текущий + соседние, чтобы навигация стрелками
-    // «вперёд/назад» работала через границы годов.
+    // Лента содержит ТОЛЬКО текущий год — без 2025 и 2027.
     const allWeeks: Week[] = [];
-    for (const year of [currentYear - 1, currentYear, currentYear + 1]) {
+    for (const year of [currentYear]) {
       for (let month = 0; month < 12; month++) {
         allWeeks.push(...getMonthWeeks(year, month));
       }
@@ -177,8 +176,6 @@ function App() {
   }, []);
 
   // Одна попытка автоскролла за сессию к текущей неделе.
-  // Условие на isLoading не ставим: на время загрузки данных рендерится экран-заглушка
-  // без контейнера недель, и эффект бы «срабатывал» вхолостую, никогда не прокручивая страницу.
   useEffect(() => {
     if (!shouldScrollToCurrentWeek) return;
     let attempts = 0;
@@ -186,13 +183,14 @@ function App() {
     const tryScroll = () => {
       attempts++;
       const container = weeksContainerRef.current;
-      const weekElement = currentWeekRef.current ?? (currentWeekId ? document.getElementById(`week-${currentWeekId}`) : null);
+      // Элемент текущей недели ищем напрямую в DOM по id — это надёжнее, чем
+      // полагаться на ref (ref мог ещё не привязаться на момент эффекта).
+      const weekElement = currentWeekId ? document.getElementById(`week-${currentWeekId}`) : null;
       if (container && weekElement) {
         setShouldScrollToCurrentWeek(false);
-        const containerRect = container.getBoundingClientRect();
-        const weekRect = weekElement.getBoundingClientRect();
-        const scrollTop = weekRect.top - containerRect.top + container.scrollTop - 20;
-        container.scrollTo({ top: scrollTop, behavior: 'smooth' });
+        // scrollIntoView прокручивает ВСЕ скроллящиеся предки (и внутренний
+        // контейнер ленты, и окно браузера) — работает при любом разрешении экрана.
+        weekElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
       } else if (attempts < 40) {
         timer = setTimeout(tryScroll, 150);
       } else {
@@ -749,10 +747,10 @@ function App() {
               </ul>
             </div>
           )}
-          <div ref={weeksContainerRef} style={{ display: 'flex', flexDirection: 'column', gap: 16, maxHeight: 'calc(100vh - 200px)', overflowY: 'auto', paddingRight: 8 }}>
+          <div ref={weeksContainerRef} style={{ display: 'flex', flexDirection: 'column', gap: 16, maxHeight: 'calc(100vh - 200px)', overflowY: 'auto', paddingRight: 8, scrollMarginTop: 90 }}>
             {weeks.map((week) => {
               const isCurrentWeek = week.id === currentWeekId;
-              return (<div key={week.id} id={`week-${week.id}`} ref={isCurrentWeek ? currentWeekRef : null}><WeekRow week={week} tasks={tasks} assignments={assignments} dayStatuses={dayStatuses} onDropTask={dropTask} onRemoveAssignment={removeAssignment} onSplitAssignment={splitAssignment} onMoveAssignment={moveAssignment} onSetDayStatus={setDayStatus} onReorderAssignment={reorderAssignment} onMergeAssignments={mergeAssignments} isMobile={isMobile} isCurrentWeek={isCurrentWeek} visibleMonth={visibleMonth} currentWeekId={currentWeekId} /></div>);
+              return (<div key={week.id} id={`week-${week.id}`} style={{ scrollMarginTop: 90 }} ref={isCurrentWeek ? currentWeekRef : null}><WeekRow week={week} tasks={tasks} assignments={assignments} dayStatuses={dayStatuses} onDropTask={dropTask} onRemoveAssignment={removeAssignment} onSplitAssignment={splitAssignment} onMoveAssignment={moveAssignment} onSetDayStatus={setDayStatus} onReorderAssignment={reorderAssignment} onMergeAssignments={mergeAssignments} isMobile={isMobile} isCurrentWeek={isCurrentWeek} visibleMonth={visibleMonth} currentWeekId={currentWeekId} /></div>);
             })}
           </div>
         </main>
