@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { Task, TaskAssignment, Week } from './types';
-import { getMonthWeeks, getMonthName, generateId, HOURS_PER_DAY } from './utils/dateUtils';
+import { getMonthWeeks, getMonthName, generateId, HOURS_PER_DAY, formatDateKey } from './utils/dateUtils';
 import { formatHours } from './utils/timeFormat';
 import TaskForm from './components/TaskForm';
 import TaskCard from './components/TaskCard';
@@ -101,32 +101,36 @@ function App() {
   useEffect(() => { if (!isLoading && currentUser) saveAssignments(assignments); }, [assignments, isLoading, currentUser]);
 
   const weeksContainerRef = useRef<HTMLDivElement>(null);
-  const currentWeekRef = useRef<HTMLDivElement>(null);
+  const currentWeekRef = useRef<HTMLDivElement | null>(null);
 
   const weeks = useMemo(() => {
+    // Собираем недели за три года: текущий + соседние, чтобы навигация стрелками
+    // «вперёд/назад» работала через границы годов.
     const allWeeks: Week[] = [];
-    for (let month = 0; month < 12; month++) {
-      const monthWeeks = getMonthWeeks(currentYear, month);
-      allWeeks.push(...monthWeeks);
+    for (const year of [currentYear - 1, currentYear, currentYear + 1]) {
+      for (let month = 0; month < 12; month++) {
+        allWeeks.push(...getMonthWeeks(year, month));
+      }
     }
-    const uniqueWeeks = allWeeks.filter((week, index, self) => {
-      const firstDay = week.days[0].date.toDateString();
-      return index === self.findIndex(w => w.days[0].date.toDateString() === firstDay);
+    // Дедупликация по дате понедельника: одна физическая неделя не должна
+    // встречаться в списке дважды (раньше из-за этого ломались id и скролл).
+    const seen = new Set<string>();
+    const uniqueWeeks = allWeeks.filter((week) => {
+      const key = formatDateKey(new Date(week.days[0].date));
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
     });
-    const today = new Date();
-    const currentWeekIndex = uniqueWeeks.findIndex(week => week.days.some(day => new Date(day.date).toDateString() === today.toDateString()));
-    if (currentWeekIndex !== -1) {
-      const weeksBefore = uniqueWeeks.slice(0, currentWeekIndex);
-      const currentWeek = uniqueWeeks[currentWeekIndex];
-      const weeksAfter = uniqueWeeks.slice(currentWeekIndex + 1);
-      return [...weeksBefore, currentWeek, ...weeksAfter];
-    }
+    // Гарантируем строго хронологический порядок — независим от порядка генерации.
+    uniqueWeeks.sort((a, b) => new Date(a.days[0].date).getTime() - new Date(b.days[0].date).getTime());
     return uniqueWeeks;
   }, [currentYear]);
 
   const currentWeekId = useMemo(() => {
-    const today = new Date();
-    const week = weeks.find(w => w.days.some(day => new Date(day.date).toDateString() === today.toDateString()));
+    // Сравниваем по календарной дате (год/месяц/число), а не через toDateString,
+    // чтобы поиск текущей недели не зависел от времени суток и таймзоны.
+    const todayKey = formatDateKey(new Date());
+    const week = weeks.find(w => w.days.some(day => formatDateKey(new Date(day.date)) === todayKey));
     return week?.id || null;
   }, [weeks]);
 
@@ -134,21 +138,90 @@ function App() {
   const visibleMonthRef = useRef(visibleMonth);
   useEffect(() => { weeksRef.current = weeks; visibleMonthRef.current = visibleMonth; }, [weeks, visibleMonth]);
 
+  // Эффект привязывает ref текущей недели после коммита DOM (гарантированно актуальный элемент)
   useEffect(() => {
-    if (!isLoading && weeks.length > 0 && shouldScrollToCurrentWeek) {
-      const timer = setTimeout(() => {
-        const container = weeksContainerRef.current;
-        const weekElement = currentWeekRef.current;
-        if (container && weekElement) {
-          const containerRect = container.getBoundingClientRect();
-          const weekRect = weekElement.getBoundingClientRect();
-          const scrollTop = weekRect.top - containerRect.top + container.scrollTop - 20;
-          container.scrollTo({ top: scrollTop, behavior: 'smooth' });
-        }
-      }, 300);
-      return () => clearTimeout(timer);
-    }
-  }, [weeks, isLoading, shouldScrollToCurrentWeek, currentWeekId]);
+    if (!currentWeekId) { currentWeekRef.current = null; return; }
+    const el = document.getElementById(`week-${currentWeekId}`);
+    currentWeekRef.current = el as HTMLDivElement | null;
+  }, [weeks, currentWeekId]);
+
+  // Вычисляет, какой месяц сейчас видим в центре контейнера недель
+  // (по той же логике, что и обработчик скролла — большинство дней ближайшей недели).
+  const getVisibleMonthFromContainer = useCallback((): { month: number; year: number } | null => {
+    const container = weeksContainerRef.current;
+    if (!container) return null;
+    const containerRect = container.getBoundingClientRect();
+    const containerCenter = containerRect.top + containerRect.height / 2;
+    let closestWeek: Week | undefined;
+    let minDistance = Infinity;
+    weeksRef.current.forEach(week => {
+      const weekElement = document.getElementById(`week-${week.id}`);
+      if (weekElement) {
+        const weekRect = weekElement.getBoundingClientRect();
+        const weekCenter = weekRect.top + weekRect.height / 2;
+        const distance = Math.abs(weekCenter - containerCenter);
+        if (distance < minDistance) { minDistance = distance; closestWeek = week; }
+      }
+    });
+    if (!closestWeek) return null;
+    const monthCounts: Record<string, number> = {};
+    (closestWeek as Week).days.forEach(day => {
+      const dayDate = new Date(day.date);
+      const key = `${dayDate.getFullYear()}-${dayDate.getMonth()}`;
+      monthCounts[key] = (monthCounts[key] || 0) + 1;
+    });
+    let maxMonth = '', maxCount = 0;
+    Object.entries(monthCounts).forEach(([key, count]) => { if (count > maxCount) { maxCount = count; maxMonth = key; } });
+    const [yearStr, monthStr] = maxMonth.split('-');
+    return { month: parseInt(monthStr), year: parseInt(yearStr) };
+  }, []);
+
+  // Одна попытка автоскролла за сессию к текущей неделе.
+  // Условие на isLoading не ставим: на время загрузки данных рендерится экран-заглушка
+  // без контейнера недель, и эффект бы «срабатывал» вхолостую, никогда не прокручивая страницу.
+  useEffect(() => {
+    if (!shouldScrollToCurrentWeek) return;
+    let attempts = 0;
+    let timer: ReturnType<typeof setTimeout>;
+    const tryScroll = () => {
+      attempts++;
+      const container = weeksContainerRef.current;
+      const weekElement = currentWeekRef.current ?? (currentWeekId ? document.getElementById(`week-${currentWeekId}`) : null);
+      if (container && weekElement) {
+        setShouldScrollToCurrentWeek(false);
+        const containerRect = container.getBoundingClientRect();
+        const weekRect = weekElement.getBoundingClientRect();
+        const scrollTop = weekRect.top - containerRect.top + container.scrollTop - 20;
+        container.scrollTo({ top: scrollTop, behavior: 'smooth' });
+      } else if (attempts < 40) {
+        timer = setTimeout(tryScroll, 150);
+      } else {
+        // Страховка: если элемент так и не появился, всё равно показываем текущий месяц в шапке.
+        const today = new Date();
+        setVisibleMonth({ month: today.getMonth(), year: today.getFullYear() });
+        setShouldScrollToCurrentWeek(false);
+      }
+    };
+    timer = setTimeout(tryScroll, 300);
+    return () => clearTimeout(timer);
+  }, [shouldScrollToCurrentWeek, weeks, currentWeekId]);
+
+  // Синхронизация шапки с видимым месяцем сразу после автопрокрутки:
+  // плавный скролл может завершиться позже обработчиков scroll, поэтому
+  // проверяем позицию несколько раз и приводим заголовок к фактически видимой неделе.
+  useEffect(() => {
+    if (shouldScrollToCurrentWeek) return;
+    let tries = 0;
+    const interval = setInterval(() => {
+      tries++;
+      const visible = getVisibleMonthFromContainer();
+      if (visible) {
+        setVisibleMonth(prev => (prev.month === visible.month && prev.year === visible.year ? prev : visible));
+      }
+      if (tries >= 8) clearInterval(interval);
+    }, 400);
+    return () => clearInterval(interval);
+  }, [shouldScrollToCurrentWeek, getVisibleMonthFromContainer]);
 
   useEffect(() => {
     const attachScrollHandler = () => {
@@ -203,10 +276,14 @@ function App() {
     let targetYear = visibleMonth.year;
     if (targetMonth < 0) { targetMonth = 11; targetYear--; }
     else if (targetMonth > 11) { targetMonth = 0; targetYear++; }
-    if (targetYear < currentYear || targetYear > currentYear) return;
+    // Ищем первую неделю, у которой БОЛЬШИНСТВО дней относится к целевому месяцу —
+    // иначе переход мог приземляться на «хвост» соседнего месяца.
     const targetWeek = weeks.find(week => {
-      const firstDay = new Date(week.days[0].date);
-      return firstDay.getMonth() === targetMonth && firstDay.getFullYear() === targetYear;
+      const inMonth = week.days.filter(d => {
+        const dayDate = new Date(d.date);
+        return dayDate.getMonth() === targetMonth && dayDate.getFullYear() === targetYear;
+      }).length;
+      return inMonth >= 3;
     });
     if (targetWeek) {
       const weekElement = document.getElementById(`week-${targetWeek.id}`);
@@ -674,8 +751,7 @@ function App() {
           )}
           <div ref={weeksContainerRef} style={{ display: 'flex', flexDirection: 'column', gap: 16, maxHeight: 'calc(100vh - 200px)', overflowY: 'auto', paddingRight: 8 }}>
             {weeks.map((week) => {
-              const today = new Date();
-              const isCurrentWeek = week.days.some(day => new Date(day.date).toDateString() === today.toDateString());
+              const isCurrentWeek = week.id === currentWeekId;
               return (<div key={week.id} id={`week-${week.id}`} ref={isCurrentWeek ? currentWeekRef : null}><WeekRow week={week} tasks={tasks} assignments={assignments} dayStatuses={dayStatuses} onDropTask={dropTask} onRemoveAssignment={removeAssignment} onSplitAssignment={splitAssignment} onMoveAssignment={moveAssignment} onSetDayStatus={setDayStatus} onReorderAssignment={reorderAssignment} onMergeAssignments={mergeAssignments} isMobile={isMobile} isCurrentWeek={isCurrentWeek} visibleMonth={visibleMonth} currentWeekId={currentWeekId} /></div>);
             })}
           </div>
