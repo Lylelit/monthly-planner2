@@ -31,7 +31,11 @@ export function getMonthWeeks(year: number, month: number): Week[] {
       });
     }
     weeks.push({
-      id: `week-${getIsoWeekId(weekStart)}`,
+      // ВАЖНО: id хранится БЕЗ префикса "week-" — префикс добавляется только
+      // в DOM (id={`week-${week.id}`}). Раньше id уже содержал "week-", и
+      // getElementById("week-" + week.id) искал "week-week-...", из-за чего
+      // автоскролл никогда не находил элемент текущей недели.
+      id: getIsoWeekId(weekStart),
       days,
     });
     weekStart.setDate(weekStart.getDate() + 7);
