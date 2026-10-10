@@ -135,7 +135,11 @@ function App() {
 
   const weeksRef = useRef(weeks);
   const visibleMonthRef = useRef(visibleMonth);
+  // Пока при первом открытии не выполнилась автопрокрутка к текущей неделе,
+  // обработчик скролла не должен менять заголовок месяца.
+  const autoScrollPendingRef = useRef(true);
   useEffect(() => { weeksRef.current = weeks; visibleMonthRef.current = visibleMonth; }, [weeks, visibleMonth]);
+  useEffect(() => { autoScrollPendingRef.current = shouldScrollToCurrentWeek; }, [shouldScrollToCurrentWeek]);
 
   // Эффект привязывает ref текущей недели после коммита DOM (гарантированно актуальный элемент)
   useEffect(() => {
@@ -144,27 +148,10 @@ function App() {
     currentWeekRef.current = el as HTMLDivElement | null;
   }, [weeks, currentWeekId]);
 
-  // Вычисляет, какой месяц сейчас видим в центре контейнера недель
-  // (по той же логике, что и обработчик скролла — большинство дней ближайшей недели).
-  const getVisibleMonthFromContainer = useCallback((): { month: number; year: number } | null => {
-    const container = weeksContainerRef.current;
-    if (!container) return null;
-    const containerRect = container.getBoundingClientRect();
-    const containerCenter = containerRect.top + containerRect.height / 2;
-    let closestWeek: Week | undefined;
-    let minDistance = Infinity;
-    weeksRef.current.forEach(week => {
-      const weekElement = document.getElementById(`week-${week.id}`);
-      if (weekElement) {
-        const weekRect = weekElement.getBoundingClientRect();
-        const weekCenter = weekRect.top + weekRect.height / 2;
-        const distance = Math.abs(weekCenter - containerCenter);
-        if (distance < minDistance) { minDistance = distance; closestWeek = week; }
-      }
-    });
-    if (!closestWeek) return null;
+  // Месяц, которому принадлежит неделя (большинство из 5 рабочих дней недели).
+  const getWeekDominantMonth = useCallback((week: Week): { month: number; year: number } => {
     const monthCounts: Record<string, number> = {};
-    (closestWeek as Week).days.forEach(day => {
+    week.days.forEach(day => {
       const dayDate = new Date(day.date);
       const key = `${dayDate.getFullYear()}-${dayDate.getMonth()}`;
       monthCounts[key] = (monthCounts[key] || 0) + 1;
@@ -175,86 +162,90 @@ function App() {
     return { month: parseInt(monthStr), year: parseInt(yearStr) };
   }, []);
 
+  // Прокрутка контейнера ленты к неделе.
+  // Используем нативный scrollTop вместо scrollTo/scrollIntoView: мгновенная позиционная
+  // прокрутка не перехватывается другими скроллами и одинаково работает во всех браузерах.
+  const scrollContainerToWeek = useCallback((container: HTMLElement, weekElement: HTMLElement) => {
+    const containerRect = container.getBoundingClientRect();
+    const weekRect = weekElement.getBoundingClientRect();
+    const targetTop = Math.max(0, container.scrollTop + (weekRect.top - containerRect.top));
+    container.scrollTop = targetTop;
+    return targetTop;
+  }, []);
+
   // Одна попытка автоскролла за сессию к текущей неделе.
   useEffect(() => {
     if (!shouldScrollToCurrentWeek) return;
+    let cancelled = false;
+    let raf = 0;
     let attempts = 0;
-    let timer: ReturnType<typeof setTimeout>;
+    let appliedTop = -1;
     const tryScroll = () => {
+      if (cancelled) return;
       attempts++;
       const container = weeksContainerRef.current;
-      // Элемент текущей недели ищем напрямую в DOM по id — это надёжнее, чем
-      // полагаться на ref (ref мог ещё не привязаться на момент эффекта).
+      // Элемент текущей недели ищем напрямую в DOM по id — надёжнее, чем ref,
+      // который мог ещё не привязаться на момент запуска эффекта.
       const weekElement = currentWeekId ? document.getElementById(`week-${currentWeekId}`) : null;
-      if (container && weekElement) {
+      if (container && weekElement && weekElement.offsetHeight > 0) {
+        const top = scrollContainerToWeek(container, weekElement);
+        // Страховка от «отката» прокрутки: если браузер или сторонний код
+        // восстановил позицию (scrollTop не совпал), применяем её повторно.
+        if (appliedTop >= 0 && container.scrollTop !== appliedTop) {
+          container.scrollTop = appliedTop;
+        } else if (appliedTop < 0) {
+          appliedTop = top;
+          raf = requestAnimationFrame(() => {
+            if (!cancelled && weeksContainerRef.current && weeksContainerRef.current.scrollTop !== appliedTop) {
+              weeksContainerRef.current.scrollTop = appliedTop;
+            }
+          });
+        }
+        // Показываем в шапке месяц, к которому реально прокрутили ленту.
+        setVisibleMonth(getWeekDominantMonth(weeksRef.current.find(w => w.id === currentWeekId) || weeksRef.current[0]));
         setShouldScrollToCurrentWeek(false);
-        // scrollIntoView прокручивает ВСЕ скроллящиеся предки (и внутренний
-        // контейнер ленты, и окно браузера) — работает при любом разрешении экрана.
-        weekElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      } else if (attempts < 40) {
-        timer = setTimeout(tryScroll, 150);
+        return;
+      }
+      if (attempts < 90) {
+        // Ждём появления элементов в rAF-цикле: как только лента отрендерилась,
+        // скролл происходит в тот же кадр, до первой отрисовки пользователю.
+        raf = requestAnimationFrame(tryScroll);
       } else {
-        // Страховка: если элемент так и не появился, всё равно показываем текущий месяц в шапке.
         const today = new Date();
         setVisibleMonth({ month: today.getMonth(), year: today.getFullYear() });
         setShouldScrollToCurrentWeek(false);
       }
     };
-    timer = setTimeout(tryScroll, 300);
-    return () => clearTimeout(timer);
-  }, [shouldScrollToCurrentWeek, weeks, currentWeekId]);
-
-  // Синхронизация шапки с видимым месяцем сразу после автопрокрутки:
-  // плавный скролл может завершиться позже обработчиков scroll, поэтому
-  // проверяем позицию несколько раз и приводим заголовок к фактически видимой неделе.
-  useEffect(() => {
-    if (shouldScrollToCurrentWeek) return;
-    let tries = 0;
-    const interval = setInterval(() => {
-      tries++;
-      const visible = getVisibleMonthFromContainer();
-      if (visible) {
-        setVisibleMonth(prev => (prev.month === visible.month && prev.year === visible.year ? prev : visible));
-      }
-      if (tries >= 8) clearInterval(interval);
-    }, 400);
-    return () => clearInterval(interval);
-  }, [shouldScrollToCurrentWeek, getVisibleMonthFromContainer]);
+    raf = requestAnimationFrame(tryScroll);
+    return () => { cancelled = true; cancelAnimationFrame(raf); };
+  }, [shouldScrollToCurrentWeek, currentWeekId, getWeekDominantMonth, scrollContainerToWeek]);
 
   useEffect(() => {
     const attachScrollHandler = () => {
       const container = weeksContainerRef.current;
       if (!container) { requestAnimationFrame(attachScrollHandler); return; }
       const handleScroll = () => {
+        // Пока не выполнилась автопрокрутка при первом открытии, заголовок
+        // не трогаем — иначе он «прыгнет» на январь до скролла к текущей неделе.
+        if (autoScrollPendingRef.current) return;
         const containerRect = container.getBoundingClientRect();
-        const containerCenter = containerRect.top + containerRect.height / 2;
-        let closestWeek: Week | undefined;
-        let minDistance = Infinity;
-        weeksRef.current.forEach(week => {
+        const probeY = containerRect.top + Math.min(100, containerRect.height / 2);
+        let activeWeek: Week | undefined;
+        for (const week of weeksRef.current) {
           const weekElement = document.getElementById(`week-${week.id}`);
-          if (weekElement) {
-            const weekRect = weekElement.getBoundingClientRect();
-            const weekCenter = weekRect.top + weekRect.height / 2;
-            const distance = Math.abs(weekCenter - containerCenter);
-            if (distance < minDistance) { minDistance = distance; closestWeek = week; }
-          }
-        });
-        if (closestWeek) {
-          const monthCounts: Record<string, number> = {};
-          closestWeek.days.forEach(day => {
-            const dayDate = new Date(day.date);
-            const key = `${dayDate.getFullYear()}-${dayDate.getMonth()}`;
-            monthCounts[key] = (monthCounts[key] || 0) + 1;
-          });
-          let maxMonth = '', maxCount = 0;
-          Object.entries(monthCounts).forEach(([key, count]) => { if (count > maxCount) { maxCount = count; maxMonth = key; } });
-          const [yearStr, monthStr] = maxMonth.split('-');
-          const year = parseInt(yearStr), month = parseInt(monthStr);
+          if (!weekElement) continue;
+          const rect = weekElement.getBoundingClientRect();
+          if (rect.top <= probeY && rect.bottom > probeY) { activeWeek = week; break; }
+        }
+        if (activeWeek) {
+          const visible = getWeekDominantMonth(activeWeek);
           const currentVisibleMonth = visibleMonthRef.current;
-          if (month !== currentVisibleMonth.month || year !== currentVisibleMonth.year) setVisibleMonth({ month, year });
+          if (visible.month !== currentVisibleMonth.month || visible.year !== currentVisibleMonth.year) {
+            setVisibleMonth(visible);
+          }
         }
       };
-      container.addEventListener('scroll', handleScroll);
+      container.addEventListener('scroll', handleScroll, { passive: true });
       (container as any)._scrollHandler = handleScroll;
     };
     attachScrollHandler();
@@ -265,7 +256,7 @@ function App() {
         delete (container as any)._scrollHandler;
       }
     };
-  }, []);
+  }, [getWeekDominantMonth]);
 
   const scrollToMonth = (direction: -1 | 1) => {
     const container = weeksContainerRef.current;
@@ -286,10 +277,7 @@ function App() {
     if (targetWeek) {
       const weekElement = document.getElementById(`week-${targetWeek.id}`);
       if (weekElement) {
-        const containerRect = container.getBoundingClientRect();
-        const weekRect = weekElement.getBoundingClientRect();
-        const scrollTop = weekRect.top - containerRect.top + container.scrollTop - 100;
-        container.scrollTo({ top: scrollTop, behavior: 'smooth' });
+        scrollContainerToWeek(container, weekElement);
         setVisibleMonth({ month: targetMonth, year: targetYear });
       }
     }
