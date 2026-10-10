@@ -101,7 +101,7 @@ function App() {
   useEffect(() => { if (!isLoading && currentUser) saveAssignments(assignments); }, [assignments, isLoading, currentUser]);
 
   const weeksContainerRef = useRef<HTMLDivElement>(null);
-  const currentWeekRef = useRef<HTMLDivElement>(null);
+  const currentWeekRef = useRef<HTMLDivElement | null>(null);
 
   const weeks = useMemo(() => {
     const allWeeks: Week[] = [];
@@ -134,21 +134,37 @@ function App() {
   const visibleMonthRef = useRef(visibleMonth);
   useEffect(() => { weeksRef.current = weeks; visibleMonthRef.current = visibleMonth; }, [weeks, visibleMonth]);
 
+  // Эффект привязывает ref текущей недели после коммита DOM (гарантированно актуальный элемент)
   useEffect(() => {
-    if (!isLoading && weeks.length > 0 && shouldScrollToCurrentWeek) {
-      const timer = setTimeout(() => {
-        const container = weeksContainerRef.current;
-        const weekElement = currentWeekRef.current;
-        if (container && weekElement) {
-          const containerRect = container.getBoundingClientRect();
-          const weekRect = weekElement.getBoundingClientRect();
-          const scrollTop = weekRect.top - containerRect.top + container.scrollTop - 20;
-          container.scrollTo({ top: scrollTop, behavior: 'smooth' });
-        }
-      }, 300);
-      return () => clearTimeout(timer);
-    }
-  }, [weeks, isLoading, shouldScrollToCurrentWeek, currentWeekId]);
+    if (!currentWeekId) { currentWeekRef.current = null; return; }
+    const el = document.getElementById(`week-${currentWeekId}`);
+    currentWeekRef.current = el as HTMLDivElement | null;
+  }, [weeks, currentWeekId]);
+
+  // Одна попытка автоскролла за сессию: ждём, пока ref текущей недели будет привязан.
+  // Условие на isLoading не ставим: на время загрузки данных рендерится экран-заглушка
+  // без контейнера недель, и эффект бы «срабатывал» вхолостую, никогда не прокручивая страницу.
+  useEffect(() => {
+    if (!shouldScrollToCurrentWeek) return;
+    let attempts = 0;
+    let timer: ReturnType<typeof setTimeout>;
+    const tryScroll = () => {
+      attempts++;
+      const container = weeksContainerRef.current;
+      const weekElement = currentWeekRef.current ?? (currentWeekId ? document.getElementById(`week-${currentWeekId}`) : null);
+      if (container && weekElement) {
+        setShouldScrollToCurrentWeek(false);
+        const containerRect = container.getBoundingClientRect();
+        const weekRect = weekElement.getBoundingClientRect();
+        const scrollTop = weekRect.top - containerRect.top + container.scrollTop - 20;
+        container.scrollTo({ top: scrollTop, behavior: 'smooth' });
+      } else if (attempts < 40) {
+        timer = setTimeout(tryScroll, 150);
+      }
+    };
+    timer = setTimeout(tryScroll, 300);
+    return () => clearTimeout(timer);
+  }, [shouldScrollToCurrentWeek, weeks, currentWeekId]);
 
   useEffect(() => {
     const attachScrollHandler = () => {
