@@ -40,9 +40,6 @@ function App() {
   const [shouldScrollToCurrentWeek, setShouldScrollToCurrentWeek] = useState(true);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   // Счётчики кликов по иконкам свёрнутого сайдбара — при изменении раскрывают нужную секцию в полной панели
-  const [expandTaskFormSignal, setExpandTaskFormSignal] = useState(0);
-  const [expandSearchSignal, setExpandSearchSignal] = useState(0);
-  const [expandCompletedSignal, setExpandCompletedSignal] = useState(0);
   // const [redmineSettings, setRedmineSettings] = useState<RedmineSettings | null>(null);
   // const [showRedmineSettings, setShowRedmineSettings] = useState(false);
   // const [showRedmineImport, setShowRedmineImport] = useState(false);
@@ -410,9 +407,9 @@ function App() {
                 </svg>
               </button>
               
-              {/* Иконка "Мои задачи" — разворачивает панель и открывает форму создания задачи */}
+              {/* Иконка "Мои задачи" — просто разворачивает панель (форма остаётся свёрнутой) */}
               <button
-                onClick={() => { setIsSidebarCollapsed(false); setExpandTaskFormSignal(s => s + 1); }}
+                onClick={() => { setIsSidebarCollapsed(false); }}
                 style={{
                   background: theme.bgCard,
                   borderRadius: 12,
@@ -434,9 +431,9 @@ function App() {
                 </svg>
               </button>
               
-              {/* Иконка поиска — разворачивает панель и раскрывает блок поиска/фильтров */}
+              {/* Иконка поиска — разворачивает панель (поиск остаётся свёрнутым, как и другие разделы) */}
               <button
-                onClick={() => { setIsSidebarCollapsed(false); setExpandSearchSignal(s => s + 1); }}
+                onClick={() => { setIsSidebarCollapsed(false); }}
                 style={{
                   background: theme.bgCard,
                   borderRadius: 12,
@@ -459,10 +456,10 @@ function App() {
                 </svg>
               </button>
               
-              {/* Иконка "Новые задачи" — разворачивает панель и раскрывает список новых задач */}
-              {filteredTasks.filter(t => t.status !== 'completed').length > 0 && (
+              {/* Иконка "Новые задачи" — разворачивает панель к списку новых задач */}
+              {tasks.filter(t => t.status !== 'completed').length > 0 && (
                 <button
-                  onClick={() => { setIsSidebarCollapsed(false); setExpandSearchSignal(s => s + 1); setStatusFilter('new'); }}
+                  onClick={() => { setIsSidebarCollapsed(false); }}
                   style={{
                     background: theme.bgCard,
                     borderRadius: 12,
@@ -478,7 +475,7 @@ function App() {
                   }}
                   onMouseEnter={e => { e.currentTarget.style.background = theme.bgHover; }}
                   onMouseLeave={e => { e.currentTarget.style.background = theme.bgCard; }}
-                  title={`Новые задачи: ${filteredTasks.filter(t => t.status !== 'completed').length} (развернуть панель)`}
+                  title={`Новые задачи: ${tasks.filter(t => t.status !== 'completed').length} (развернуть панель)`}
                 >
                   <svg width="20" height="20" fill="none" stroke={theme.accent1} viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
@@ -499,15 +496,15 @@ function App() {
                     fontWeight: 600,
                     pointerEvents: 'none'
                   }}>
-                    {filteredTasks.filter(t => t.status !== 'completed').length}
+                    {tasks.filter(t => t.status !== 'completed').length}
                   </span>
                 </button>
               )}
               
-              {/* Иконка "Выполненные задачи" — разворачивает панель и раскрывает список выполненных задач */}
-              {filteredTasks.filter(t => t.status === 'completed').length > 0 && (
+              {/* Иконка "Выполненные задачи" — разворачивает панель; счётчик всегда по всем выполненным */}
+              {tasks.filter(t => t.status === 'completed').length > 0 && (
                 <button
-                  onClick={() => { setIsSidebarCollapsed(false); setExpandCompletedSignal(s => s + 1); }}
+                  onClick={() => { setIsSidebarCollapsed(false); }}
                   style={{
                     background: theme.bgCard,
                     borderRadius: 12,
@@ -523,7 +520,7 @@ function App() {
                   }}
                   onMouseEnter={e => { e.currentTarget.style.background = theme.bgHover; }}
                   onMouseLeave={e => { e.currentTarget.style.background = theme.bgCard; }}
-                  title={`Выполненные задачи: ${filteredTasks.filter(t => t.status === 'completed').length} (развернуть панель)`}
+                  title={`Выполненные задачи: ${tasks.filter(t => t.status === 'completed').length} (развернуть панель)`}
                 >
                   <svg width="20" height="20" fill="none" stroke={theme.success} viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -544,7 +541,7 @@ function App() {
                     fontWeight: 600,
                     pointerEvents: 'none'
                   }}>
-                    {filteredTasks.filter(t => t.status === 'completed').length}
+                    {tasks.filter(t => t.status === 'completed').length}
                   </span>
                 </button>
               )}
@@ -584,7 +581,7 @@ function App() {
                     </svg>
                   </button>
                 </div>
-                <TaskForm onAddTask={addTask} forceOpen={expandTaskFormSignal} />
+                <TaskForm onAddTask={addTask} />
               </div>
               
               {/* Redmine интеграция - временно скрыта из-за проблем с CORS */}
@@ -637,7 +634,7 @@ function App() {
                 </div>
               </div> */}
               
-              <SearchFilter searchQuery={searchQuery} onSearchChange={setSearchQuery} statusFilter={statusFilter} onStatusFilterChange={setStatusFilter} forceExpand={expandSearchSignal} />
+              <SearchFilter searchQuery={searchQuery} onSearchChange={setSearchQuery} statusFilter={statusFilter} onStatusFilterChange={setStatusFilter} />
               {filteredTasks.filter(t => t.status !== 'completed').length > 0 && (
                 <div style={{ background: theme.bgCard, borderRadius: 16, border: `1px solid ${theme.borderPrimary}`, padding: 16, boxShadow: theme.shadow, display: 'flex', flexDirection: 'column', minHeight: 0, width: '100%', boxSizing: 'border-box', overflow: 'hidden' }}>
                   <h3 style={{ fontSize: 14, fontWeight: 600, color: theme.textPrimary, marginBottom: 12, flexShrink: 0 }}>Новые задачи ({filteredTasks.filter(t => t.status !== 'completed').length})</h3>
@@ -650,7 +647,7 @@ function App() {
                   </div>
                 </div>
               )}
-              <CompletedTasksList tasks={filteredTasks} assignments={assignments} days={weeks.flatMap(w => w.days)} onReturnToNew={returnToNew} forceExpand={expandCompletedSignal} />
+              <CompletedTasksList tasks={filteredTasks} assignments={assignments} days={weeks.flatMap(w => w.days)} onReturnToNew={returnToNew} />
               {filteredTasks.filter(t => t.status !== 'completed').length === 0 && filteredTasks.filter(t => t.status === 'completed').length === 0 && (
                 <div style={{ background: theme.bgSecondary, borderRadius: 16, border: `1px solid ${theme.borderPrimary}`, padding: 24, textAlign: 'center' }}>
                   <div style={{ fontSize: 32, marginBottom: 8 }}>📋</div>

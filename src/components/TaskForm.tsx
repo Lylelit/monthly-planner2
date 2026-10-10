@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Task } from '../types';
 import { generateId } from '../utils/dateUtils';
 import { formatHours, parseTimeInput } from '../utils/timeFormat';
@@ -6,9 +6,9 @@ import { useTheme } from '../ThemeContext';
 
 const COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f97316', '#eab308', '#22c55e', '#14b8a6', '#06b6d4', '#3b82f6'];
 
-interface Props { onAddTask: (task: Task) => void; forceOpen?: number; }
+interface Props { onAddTask: (task: Task) => void; }
 
-export default function TaskForm({ onAddTask, forceOpen }: Props) {
+export default function TaskForm({ onAddTask }: Props) {
   const { theme } = useTheme();
   const [title, setTitle] = useState('');
   const [hours, setHours] = useState('');
@@ -16,7 +16,6 @@ export default function TaskForm({ onAddTask, forceOpen }: Props) {
   const [isOpen, setIsOpen] = useState(false);
 
   // Открываем форму по запросу (например, при клике на иконку «Мои задачи» в свёрнутом сайдбаре)
-  useEffect(() => { if (forceOpen) setIsOpen(true); }, [forceOpen]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
